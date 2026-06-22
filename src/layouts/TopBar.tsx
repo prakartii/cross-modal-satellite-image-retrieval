@@ -1,0 +1,123 @@
+import { useState } from 'react'
+import { motion } from 'framer-motion'
+import {
+  Globe, Command, HelpCircle, ChevronDown,
+  Satellite, LayoutGrid, Network, BarChart2, Radio,
+} from 'lucide-react'
+import { useAppStore } from '@/store/useAppStore'
+import { cn } from '@/lib/utils'
+
+const NAV_ITEMS = [
+  { id: 'command-center', label: 'Command Center', icon: Globe       },
+  { id: 'search',         label: 'Search',         icon: Satellite   },
+  { id: 'results',        label: 'Results',        icon: LayoutGrid  },
+  { id: 'graph',          label: 'Graph',          icon: Network     },
+  { id: 'analytics',      label: 'Analytics',      icon: BarChart2   },
+] as const
+
+export default function TopBar() {
+  const activeView       = useAppStore((s) => s.activeView)
+  const setActiveView    = useAppStore((s) => s.setActiveView)
+  const setCommandPalette = useAppStore((s) => s.setCommandPalette)
+  const activeMission    = useAppStore((s) => s.activeMission)
+  const isSearching      = useAppStore((s) => s.isSearching)
+  const searchComplete   = useAppStore((s) => s.searchComplete)
+  const [missionDropdown, setMissionDropdown] = useState(false)
+
+  return (
+    <header className="fixed top-0 left-0 right-0 z-50 h-13 topbar-glass">
+      <div className="flex items-center h-full px-5 gap-5">
+
+        {/* Wordmark */}
+        <button
+          onClick={() => setActiveView('command-center')}
+          className="flex items-center gap-2 hover:opacity-75 transition-opacity flex-shrink-0"
+        >
+          <div className="w-6 h-6 rounded flex items-center justify-center"
+               style={{ background: 'rgba(59,130,246,0.12)', border: '1px solid rgba(59,130,246,0.28)' }}>
+            <Globe className="w-3.5 h-3.5 text-blue-primary" />
+          </div>
+          <span className="font-display font-semibold text-sm tracking-tight">
+            <span className="text-text-primary">TerraBridge</span>
+            <span className="text-blue-primary ml-0.5">X</span>
+          </span>
+        </button>
+
+        {/* Divider */}
+        <div className="w-px h-4 flex-shrink-0" style={{ background: 'rgba(45,55,72,0.6)' }} />
+
+        {/* Primary nav */}
+        <nav className="flex items-center gap-0.5 flex-shrink-0">
+          {NAV_ITEMS.map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              onClick={() => setActiveView(id as typeof activeView)}
+              className={cn(
+                'relative flex items-center gap-1.5 px-3 py-1.5 text-body-s rounded-md transition-all duration-150 font-medium',
+                activeView === id
+                  ? 'text-text-primary'
+                  : 'text-text-tertiary hover:text-text-secondary'
+              )}
+              style={activeView === id ? { background: 'rgba(255,255,255,0.05)' } : {}}
+            >
+              <Icon className={cn('w-3.5 h-3.5', activeView === id ? 'text-blue-primary' : '')} />
+              {label}
+              {activeView === id && (
+                <motion.div
+                  layoutId="nav-indicator"
+                  className="absolute bottom-0 left-3 right-3 h-px rounded-full"
+                  style={{ background: '#3B82F6' }}
+                />
+              )}
+            </button>
+          ))}
+        </nav>
+
+        {/* Spacer */}
+        <div className="flex-1" />
+
+        {/* Mission selector */}
+        <div className="relative flex-shrink-0">
+          <button
+            onClick={() => setMissionDropdown(!missionDropdown)}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-md text-body-s transition-all duration-150"
+            style={{ background: 'rgba(26,35,51,0.8)', border: '1px solid rgba(45,55,72,0.5)' }}
+          >
+            <div className={cn(
+              'w-1.5 h-1.5 rounded-full flex-shrink-0',
+              isSearching   ? 'bg-warning animate-pulse' :
+              searchComplete ? 'bg-success' : 'bg-text-tertiary'
+            )} />
+            <span className="text-text-secondary font-medium">
+              {activeMission?.name ?? 'No mission active'}
+            </span>
+            <ChevronDown className="w-3 h-3 text-text-tertiary" />
+          </button>
+        </div>
+
+        {/* ISRO connection — understated */}
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          <div className="status-live" />
+          <span className="text-overline text-text-tertiary tracking-widest">BHUVAN</span>
+        </div>
+
+        {/* Divider */}
+        <div className="w-px h-4 flex-shrink-0" style={{ background: 'rgba(45,55,72,0.5)' }} />
+
+        {/* Command palette trigger */}
+        <button
+          onClick={() => setCommandPalette(true)}
+          className="flex items-center gap-2 px-2.5 py-1.5 rounded-md text-body-s transition-all duration-150 flex-shrink-0"
+          style={{ background: 'rgba(26,35,51,0.6)', border: '1px solid rgba(45,55,72,0.4)' }}
+        >
+          <Command className="w-3 h-3 text-text-tertiary" />
+          <span className="text-text-tertiary font-mono text-caption">K</span>
+        </button>
+
+        <button className="btn-ghost p-1.5 flex-shrink-0">
+          <HelpCircle className="w-3.5 h-3.5" />
+        </button>
+      </div>
+    </header>
+  )
+}

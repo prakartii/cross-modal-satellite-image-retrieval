@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(New-Item *)",
+      "PowerShell(cd \"C:\\\\Users\\\\prakarti\\\\Desktop\\\\projects\\\\terrabridge\" ; npx tsc --noEmit; Write-Host \"Exit: $LASTEXITCODE\")",
+      "PowerShell(Get-ChildItem \"C:\\\\Users\\\\prakarti\\\\Desktop\\\\projects\\\\terrabridge\\\\public\\\\textures\" | Format-Table Name, @{N='KB';E={[math]::Round\\($_.Length/1KB,1\\)}})",
+      "Bash(npx tsc *)",
+      "Bash(npm run *)"
+    ]
+  }
+}

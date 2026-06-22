@@ -1,0 +1,294 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --canvas: #0B1220;
+    --surface: #111827;
+    --card: #1A2333;
+    --card-hover: #1E2A3A;
+    --border: #2D3748;
+    --border-hover: #4A5568;
+    --blue-primary: #3B82F6;
+    --teal-primary: #14B8A6;
+    --text-primary: #F8FAFC;
+    --text-secondary: #94A3B8;
+    --text-tertiary: #64748B;
+  }
+
+  body {
+    @apply bg-canvas text-text-primary font-sans;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  * { box-sizing: border-box; }
+}
+
+@layer components {
+
+  /* ── Glass panels ─────────────────────────────────────────────── */
+
+  /* Primary glass — used for floating overlays on Earth */
+  .glass-panel {
+    background: rgba(9, 13, 22, 0.82);
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    box-shadow:
+      0 4px 24px rgba(0, 0, 0, 0.5),
+      inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  }
+
+  /* Panel glass — sidebar panels */
+  .panel-glass {
+    background: rgba(10, 15, 26, 0.96);
+    backdrop-filter: blur(24px) saturate(160%);
+    -webkit-backdrop-filter: blur(24px) saturate(160%);
+    border: 1px solid rgba(45, 55, 72, 0.45);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  }
+
+  /* Light panel glass */
+  .panel-glass-light {
+    background: rgba(17, 24, 39, 0.78);
+    backdrop-filter: blur(20px) saturate(150%);
+    -webkit-backdrop-filter: blur(20px) saturate(150%);
+    border: 1px solid rgba(45, 55, 72, 0.32);
+    box-shadow:
+      0 4px 16px rgba(0, 0, 0, 0.4),
+      inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  }
+
+  /* Top bar */
+  .topbar-glass {
+    background: rgba(7, 11, 20, 0.97);
+    backdrop-filter: blur(28px) saturate(160%);
+    -webkit-backdrop-filter: blur(28px) saturate(160%);
+    border-bottom: 1px solid rgba(45, 55, 72, 0.35);
+  }
+
+  /* ── Cards ────────────────────────────────────────────────────── */
+  .card-interactive {
+    background: #1A2333;
+    border-radius: 8px;
+    transition: background 0.18s ease, box-shadow 0.2s ease, transform 0.2s cubic-bezier(0.4,0,0.2,1);
+  }
+  .card-interactive:hover {
+    background: #1E2A3A;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.55);
+    transform: translateY(-2px);
+  }
+
+  /* Data surface — chart/analytics containers */
+  .data-surface {
+    background: rgba(17, 24, 39, 0.5);
+    border: 1px solid rgba(45, 55, 72, 0.28);
+    border-radius: 8px;
+  }
+
+  /* ── Buttons ──────────────────────────────────────────────────── */
+  .btn-primary {
+    @apply bg-blue-primary text-white font-medium text-body-m
+           px-4 py-2 rounded-md active:scale-[0.98]
+           focus:outline-none focus:ring-2 focus:ring-blue-primary/25;
+    transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
+    box-shadow: 0 1px 6px rgba(59, 130, 246, 0.3), 0 0 0 1px rgba(59,130,246,0.1) inset;
+  }
+  .btn-primary:hover {
+    background: #2563EB;
+    box-shadow: 0 4px 14px rgba(59, 130, 246, 0.38), 0 0 0 1px rgba(59,130,246,0.15) inset;
+    transform: translateY(-1px);
+  }
+  .btn-primary:active {
+    transform: scale(0.98);
+    box-shadow: 0 1px 4px rgba(59, 130, 246, 0.2);
+  }
+
+  .btn-secondary {
+    @apply bg-transparent border border-border/70 hover:border-border-hover
+           text-text-secondary hover:text-text-primary font-medium text-body-m
+           px-4 py-2 rounded-md focus:outline-none;
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+  }
+  .btn-secondary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  }
+  .btn-secondary:active { transform: scale(0.98); }
+
+  .btn-ghost {
+    @apply text-text-secondary hover:text-text-primary
+           px-3 py-1.5 rounded-md focus:outline-none;
+    transition: background 0.12s ease, color 0.12s ease;
+  }
+  .btn-ghost:hover {
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  /* ── Inputs ───────────────────────────────────────────────────── */
+  .input-field {
+    @apply bg-surface/60 border border-border/60 rounded-md px-3 py-2 text-body-m
+           text-text-primary placeholder:text-text-tertiary
+           focus:outline-none
+           transition-all duration-150;
+  }
+  .input-field:focus {
+    border-color: rgba(59, 130, 246, 0.5);
+    background: rgba(15, 32, 64, 0.4);
+    box-shadow: 0 0 0 3px rgba(59,130,246,0.08);
+  }
+
+  /* ── Typography utilities ─────────────────────────────────────── */
+  .overline-label {
+    @apply text-overline uppercase tracking-widest text-text-tertiary font-medium;
+  }
+
+  .mono-value {
+    @apply font-mono text-caption text-text-secondary;
+  }
+
+  /* ── Data rows ────────────────────────────────────────────────── */
+  .data-row {
+    @apply flex items-center justify-between py-2.5;
+    border-bottom: 1px solid rgba(45, 55, 72, 0.22);
+  }
+  .data-row:last-child { border-bottom: none; }
+
+  /* ── Similarity bar ───────────────────────────────────────────── */
+  .similarity-bar {
+    height: 2px;
+    border-radius: 1px;
+    background: rgba(45, 55, 72, 0.45);
+    overflow: hidden;
+  }
+  .similarity-bar-fill {
+    height: 100%;
+    border-radius: 1px;
+    transition: width 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* ── Sensor chips ─────────────────────────────────────────────── */
+  .sensor-sar {
+    background: rgba(59, 130, 246, 0.08);
+    border: 1px solid rgba(59, 130, 246, 0.22);
+    color: #3B82F6;
+  }
+  .sensor-optical {
+    background: rgba(34, 197, 94, 0.08);
+    border: 1px solid rgba(34, 197, 94, 0.22);
+    color: #22C55E;
+  }
+  .sensor-multi {
+    background: rgba(245, 158, 11, 0.08);
+    border: 1px solid rgba(245, 158, 11, 0.22);
+    color: #F59E0B;
+  }
+
+  /* ── Scrollbars ───────────────────────────────────────────────── */
+  .scrollbar-hide::-webkit-scrollbar { display: none; }
+  .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+  .scrollbar-thin::-webkit-scrollbar { width: 3px; }
+  .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: rgba(45, 55, 72, 0.5);
+    border-radius: 2px;
+  }
+
+  /* ── Pipeline ─────────────────────────────────────────────────── */
+  .pipeline-connector         { @apply h-px flex-1 transition-all duration-500; }
+  .pipeline-connector.active  { background: #14B8A6; }
+  .pipeline-connector.pending { background: rgba(45, 55, 72, 0.4); }
+
+  /* ── Depth shadows ────────────────────────────────────────────── */
+  .depth-sm  { box-shadow: 0 2px 8px rgba(0,0,0,0.4); }
+  .depth-md  { box-shadow: 0 4px 16px rgba(0,0,0,0.5); }
+  .depth-lg  { box-shadow: 0 8px 32px rgba(0,0,0,0.65); }
+  .depth-xl  { box-shadow: 0 16px 56px rgba(0,0,0,0.75); }
+
+  /* ── Text gradient ────────────────────────────────────────────── */
+  .text-gradient-blue {
+    background: linear-gradient(135deg, #3B82F6, #14B8A6);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* ── Status indicator ─────────────────────────────────────────── */
+  .status-live {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #14B8A6;
+    flex-shrink: 0;
+    animation: statusPulse 2.8s ease-in-out infinite;
+  }
+
+  /* ── Ambient gradient overlay ─────────────────────────────────── */
+  .ambient-gradient-tl::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 40%; height: 40%;
+    background: radial-gradient(ellipse at top left, rgba(59,130,246,0.05) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .ambient-gradient-br::after {
+    content: '';
+    position: absolute;
+    bottom: 0; right: 0;
+    width: 40%; height: 40%;
+    background: radial-gradient(ellipse at bottom right, rgba(20,184,166,0.04) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  /* ── Hover elevation mixin ────────────────────────────────────── */
+  .hover-elevate {
+    transition: transform 0.2s cubic-bezier(0.4,0,0.2,1), box-shadow 0.2s ease;
+  }
+  .hover-elevate:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.5);
+  }
+
+  /* ── Panel reveal ─────────────────────────────────────────────── */
+  .transition-panel {
+    transition:
+      width 300ms cubic-bezier(0.4, 0, 0.2, 1),
+      opacity 200ms cubic-bezier(0, 0, 0.2, 1);
+  }
+}
+
+@layer utilities {
+  .animate-delay-100  { animation-delay: 100ms; }
+  .animate-delay-200  { animation-delay: 200ms; }
+  .animate-delay-300  { animation-delay: 300ms; }
+  .animate-delay-400  { animation-delay: 400ms; }
+  .animate-delay-500  { animation-delay: 500ms; }
+  .animate-delay-700  { animation-delay: 700ms; }
+  .animate-delay-1000 { animation-delay: 1000ms; }
+
+  .bg-white-3 { background: rgba(255, 255, 255, 0.03); }
+  .bg-white-4 { background: rgba(255, 255, 255, 0.04); }
+  .bg-white-6 { background: rgba(255, 255, 255, 0.06); }
+}
+
+@keyframes statusPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.4; transform: scale(0.85); }
+}
+
+@keyframes edgePulse {
+  0%, 100% { opacity: 0.3; }
+  50%       { opacity: 0.7; }
+}
+
+/* Applied to SVG <line> elements in GraphExplorer */
+.edge-pulse {
+  animation: edgePulse 3.2s ease-in-out infinite;
+}
