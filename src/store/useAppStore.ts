@@ -34,6 +34,8 @@ interface ResultsState {
   compareIds: string[]
 }
 
+type EarthLayer = 'optical' | 'sar' | 'multispectral' | 'flood' | 'vegetation' | 'urban'
+
 interface UIState {
   leftPanelOpen: boolean
   rightPanelOpen: boolean
@@ -41,8 +43,9 @@ interface UIState {
   explainabilityOpen: boolean
   graphExplorerOpen: boolean
   commandPaletteOpen: boolean
-  activeView: 'command-center' | 'search' | 'results' | 'graph' | 'copilot' | 'analytics'
+  activeView: 'command-center' | 'search' | 'results' | 'graph' | 'copilot' | 'analytics' | 'satellite-tracker'
   activeMission: Mission | null
+  earthLayer: EarthLayer
 }
 
 interface CopilotState {
@@ -83,6 +86,7 @@ interface AppStore extends EarthState, SearchState, ResultsState, UIState, Copil
   toggleGraphExplorer: () => void
   setCommandPalette: (open: boolean) => void
   setActiveView: (v: UIState['activeView']) => void
+  setEarthLayer: (layer: EarthLayer) => void
 
   // Copilot actions
   addMessage: (msg: CopilotMessage) => void
@@ -134,6 +138,7 @@ export const useAppStore = create<AppStore>()(
     commandPaletteOpen: false,
     activeView: 'command-center',
     activeMission: null,
+    earthLayer: 'optical' as EarthLayer,
 
     // Copilot
     messages: [],
@@ -242,6 +247,7 @@ export const useAppStore = create<AppStore>()(
     toggleGraphExplorer: () => set((s) => ({ graphExplorerOpen: !s.graphExplorerOpen })),
     setCommandPalette: (open) => set({ commandPaletteOpen: open }),
     setActiveView: (v) => set({ activeView: v }),
+    setEarthLayer: (layer) => set({ earthLayer: layer }),
 
     // Copilot actions
     addMessage: (msg) => set((s) => ({ messages: [...s.messages, msg] })),

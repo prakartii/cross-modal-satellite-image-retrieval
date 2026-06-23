@@ -30,6 +30,152 @@
 
 @layer components {
 
+  /* ── Mission status system ────────────────────────────────────── */
+  .mission-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    font-family: var(--font-mono, ui-monospace, monospace);
+  }
+  .mission-badge-active {
+    background: rgba(20, 184, 166, 0.1);
+    border: 1px solid rgba(20, 184, 166, 0.35);
+    color: #14B8A6;
+  }
+  .mission-badge-active::before {
+    content: '';
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: #14B8A6;
+    animation: statusPulse 2.8s ease-in-out infinite;
+    flex-shrink: 0;
+  }
+  .mission-badge-processing {
+    background: rgba(245, 158, 11, 0.1);
+    border: 1px solid rgba(245, 158, 11, 0.35);
+    color: #F59E0B;
+  }
+  .mission-badge-processing::before {
+    content: '';
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: #F59E0B;
+    animation: statusPulse 1.4s ease-in-out infinite;
+    flex-shrink: 0;
+  }
+  .mission-badge-alert {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.35);
+    color: #EF4444;
+  }
+  .mission-badge-alert::before {
+    content: '';
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: #EF4444;
+    animation: alertFlash 0.9s ease-in-out infinite;
+    flex-shrink: 0;
+  }
+  .mission-badge-archived {
+    background: rgba(71, 85, 105, 0.15);
+    border: 1px solid rgba(71, 85, 105, 0.35);
+    color: #64748B;
+  }
+  .mission-badge-archived::before {
+    content: '';
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: #4A5568;
+    flex-shrink: 0;
+  }
+
+  /* ── Data stream ──────────────────────────────────────────────── */
+  .data-stream-line {
+    position: absolute;
+    height: 1px;
+    background: linear-gradient(to right, transparent, rgba(20,184,166,0.4), transparent);
+    animation: dataStream 3s linear infinite;
+    pointer-events: none;
+  }
+
+  /* ── Swipe handle ─────────────────────────────────────────────── */
+  .swipe-handle {
+    position: absolute;
+    top: 0; bottom: 0;
+    width: 2px;
+    background: rgba(255,255,255,0.85);
+    cursor: col-resize;
+    z-index: 10;
+    user-select: none;
+  }
+  .swipe-handle::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(15,25,45,0.95);
+    border: 1px solid rgba(255,255,255,0.2);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.6);
+  }
+
+  /* ── Satellite orbit arc ──────────────────────────────────────── */
+  .orbit-arc {
+    stroke-dasharray: 4 6;
+    animation: orbitDash 12s linear infinite;
+  }
+
+  /* ── Earth layer badge ────────────────────────────────────────── */
+  .layer-btn {
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    transition: all 0.15s ease;
+    border: 1px solid transparent;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .layer-btn-active {
+    background: rgba(59,130,246,0.15);
+    border-color: rgba(59,130,246,0.4);
+    color: #60A5FA;
+  }
+  .layer-btn-inactive {
+    background: rgba(15,20,35,0.6);
+    border-color: rgba(45,55,72,0.5);
+    color: #4A5568;
+  }
+  .layer-btn-inactive:hover {
+    border-color: rgba(45,55,72,0.8);
+    color: #64748B;
+  }
+
+  /* ── Reasoning step ───────────────────────────────────────────── */
+  .reasoning-step {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 8px 0;
+  }
+  .reasoning-step-line {
+    width: 1px;
+    background: rgba(45,55,72,0.4);
+    flex-shrink: 0;
+    margin-top: 6px;
+  }
+
   /* ── Glass panels ─────────────────────────────────────────────── */
 
   /* Primary glass — used for floating overlays on Earth */
@@ -281,6 +427,27 @@
 @keyframes statusPulse {
   0%, 100% { opacity: 1; transform: scale(1); }
   50%       { opacity: 0.4; transform: scale(0.85); }
+}
+
+@keyframes alertFlash {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.2; }
+}
+
+@keyframes dataStream {
+  0%   { transform: translateX(-100%); opacity: 0; }
+  20%  { opacity: 1; }
+  80%  { opacity: 1; }
+  100% { transform: translateX(200%); opacity: 0; }
+}
+
+@keyframes orbitDash {
+  to { stroke-dashoffset: -100; }
+}
+
+@keyframes scanLine {
+  0%   { top: 0%; opacity: 0.6; }
+  100% { top: 100%; opacity: 0; }
 }
 
 @keyframes edgePulse {

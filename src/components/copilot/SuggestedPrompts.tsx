@@ -1,9 +1,10 @@
 import { ArrowRight } from 'lucide-react'
 
 const PROMPTS = [
-  'Find flood-like regions in Northeast India',
+  'Show flood progression in Assam between 2022 and 2024',
+  'Find SAR scenes similar to this query',
+  'Show multispectral matches with vegetation stress',
   'Retrieve optical equivalents of this SAR image',
-  'Show similar agricultural zones post-monsoon',
   'Explain why result #3 ranked so high',
 ]
 
@@ -14,13 +15,14 @@ interface SuggestedPromptsProps {
 export default function SuggestedPrompts({ onSelect }: SuggestedPromptsProps) {
   return (
     <div className="space-y-1.5">
-      <div className="overline-label mb-2">Suggested Queries</div>
+      <div className="overline-label mb-2">Example Queries</div>
       {PROMPTS.map((p) => (
         <button
           key={p}
           onClick={() => onSelect(p)}
-          className="w-full flex items-center justify-between gap-2 px-3 py-2.5 bg-card border border-border
-                     rounded-lg hover:border-teal-primary/40 hover:bg-teal-surface/10 transition-all text-left group"
+          className="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg
+                     hover:border-teal-primary/40 hover:bg-teal-surface/10 transition-all text-left group"
+          style={{ background: 'rgba(17,24,39,0.5)', border: '1px solid rgba(45,55,72,0.3)' }}
         >
           <span className="text-body-s text-text-secondary group-hover:text-text-primary transition-colors leading-tight">
             "{p}"

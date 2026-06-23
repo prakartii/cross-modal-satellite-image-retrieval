@@ -1,45 +1,50 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import {
-  Globe, Command, HelpCircle, ChevronDown,
-  Satellite, LayoutGrid, Network, BarChart2, Radio,
+  Command, HelpCircle, ChevronDown,
+  Globe, Satellite, LayoutGrid, Network, BarChart2, Radio,
 } from 'lucide-react'
 import { useAppStore } from '@/store/useAppStore'
 import { cn } from '@/lib/utils'
 
 const NAV_ITEMS = [
-  { id: 'command-center', label: 'Command Center', icon: Globe       },
-  { id: 'search',         label: 'Search',         icon: Satellite   },
-  { id: 'results',        label: 'Results',        icon: LayoutGrid  },
-  { id: 'graph',          label: 'Graph',          icon: Network     },
-  { id: 'analytics',      label: 'Analytics',      icon: BarChart2   },
+  { id: 'command-center',    label: 'Command Center',     icon: Globe       },
+  { id: 'search',            label: 'Intelligence Search', icon: Satellite   },
+  { id: 'results',           label: 'Results',            icon: LayoutGrid  },
+  { id: 'graph',             label: 'Graph',              icon: Network     },
+  { id: 'analytics',         label: 'Analytics',          icon: BarChart2   },
+  { id: 'satellite-tracker', label: 'Sat. Tracker',       icon: Radio       },
 ] as const
 
 export default function TopBar() {
-  const activeView       = useAppStore((s) => s.activeView)
-  const setActiveView    = useAppStore((s) => s.setActiveView)
+  const activeView        = useAppStore((s) => s.activeView)
+  const setActiveView     = useAppStore((s) => s.setActiveView)
   const setCommandPalette = useAppStore((s) => s.setCommandPalette)
-  const activeMission    = useAppStore((s) => s.activeMission)
-  const isSearching      = useAppStore((s) => s.isSearching)
-  const searchComplete   = useAppStore((s) => s.searchComplete)
+  const activeMission     = useAppStore((s) => s.activeMission)
+  const isSearching       = useAppStore((s) => s.isSearching)
+  const searchComplete    = useAppStore((s) => s.searchComplete)
   const [missionDropdown, setMissionDropdown] = useState(false)
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 h-13 topbar-glass">
       <div className="flex items-center h-full px-5 gap-5">
 
-        {/* Wordmark */}
+        {/* Wordmark — AKSHA */}
         <button
           onClick={() => setActiveView('command-center')}
-          className="flex items-center gap-2 hover:opacity-75 transition-opacity flex-shrink-0"
+          className="flex items-center gap-2.5 hover:opacity-80 transition-opacity flex-shrink-0"
         >
-          <div className="w-6 h-6 rounded flex items-center justify-center"
-               style={{ background: 'rgba(59,130,246,0.12)', border: '1px solid rgba(59,130,246,0.28)' }}>
+          <div
+            className="w-6 h-6 rounded flex items-center justify-center"
+            style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.25)' }}
+          >
             <Globe className="w-3.5 h-3.5 text-blue-primary" />
           </div>
-          <span className="font-display font-semibold text-sm tracking-tight">
-            <span className="text-text-primary">TerraBridge</span>
-            <span className="text-blue-primary ml-0.5">X</span>
+          <span className="font-display font-bold text-sm tracking-tight">
+            <span className="text-text-primary">AKSHA</span>
+          </span>
+          <span className="text-overline text-text-tertiary tracking-widest hidden xl:block">
+            EARTH INTELLIGENCE
           </span>
         </button>
 
@@ -85,7 +90,7 @@ export default function TopBar() {
           >
             <div className={cn(
               'w-1.5 h-1.5 rounded-full flex-shrink-0',
-              isSearching   ? 'bg-warning animate-pulse' :
+              isSearching    ? 'bg-warning animate-pulse' :
               searchComplete ? 'bg-success' : 'bg-text-tertiary'
             )} />
             <span className="text-text-secondary font-medium">
@@ -95,7 +100,7 @@ export default function TopBar() {
           </button>
         </div>
 
-        {/* ISRO connection — understated */}
+        {/* ISRO BHUVAN live connection */}
         <div className="flex items-center gap-1.5 flex-shrink-0">
           <div className="status-live" />
           <span className="text-overline text-text-tertiary tracking-widest">BHUVAN</span>

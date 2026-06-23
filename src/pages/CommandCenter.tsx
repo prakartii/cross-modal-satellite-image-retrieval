@@ -1,18 +1,21 @@
 import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Layers, Satellite } from 'lucide-react'
+import { Layers, Satellite, AlertTriangle, TrendingDown, Waves, TreeDeciduous, Building2, Thermometer } from 'lucide-react'
 import { useAppStore } from '@/store/useAppStore'
 import EarthGlobe from '@/components/earth/EarthGlobe'
 import { archiveStats } from '@/data/mockResults'
 import { globeHotspots } from '@/data/satellites'
+import { cn } from '@/lib/utils'
+
+type EarthLayer = 'optical' | 'sar' | 'multispectral' | 'flood' | 'vegetation' | 'urban'
 
 const MISSION_FEED = [
-  { text: 'Flood signature detected',         sub: 'Brahmaputra Basin, Assam',   ago: '2m',  color: '#EF4444' },
-  { text: 'SAR batch ingested — 847 scenes',  sub: 'RISAT-2B · ISTRAC Bangalore', ago: '12m', color: '#3B82F6' },
-  { text: 'Retrieval complete · 94.2% match', sub: 'Query RISAT-2B_SAR_240912',  ago: '1h',  color: '#14B8A6' },
-  { text: 'Sentinel-1A overpass commenced',   sub: 'NE India corridor',           ago: '2h',  color: '#22C55E' },
-  { text: 'Cloud cover alert · 78%',          sub: 'Tamil Nadu coast',            ago: '3h',  color: '#F59E0B' },
-  { text: 'Cartosat-3 optical acquired',      sub: 'Mumbai Metropolitan Region',  ago: '4h',  color: '#3B82F6' },
+  { text: 'Flood signature detected',         sub: 'Brahmaputra Basin, Assam',    ago: '2m',  color: '#EF4444', status: 'ALERT'      },
+  { text: 'SAR batch ingested — 847 scenes',  sub: 'RISAT-2B · ISTRAC Bangalore', ago: '12m', color: '#3B82F6', status: 'PROCESSING' },
+  { text: 'Retrieval complete · 94.2% match', sub: 'Query RISAT-2B_SAR_240912',   ago: '1h',  color: '#14B8A6', status: 'ACTIVE'     },
+  { text: 'Sentinel-1A overpass commenced',   sub: 'NE India corridor',            ago: '2h',  color: '#22C55E', status: 'ACTIVE'     },
+  { text: 'Cloud cover alert · 78%',          sub: 'Tamil Nadu coast',             ago: '3h',  color: '#F59E0B', status: 'ALERT'      },
+  { text: 'Cartosat-3 optical acquired',      sub: 'Mumbai Metropolitan Region',   ago: '4h',  color: '#3B82F6', status: 'ARCHIVED'   },
 ]
 
 const ACTIVE_SENSORS = [
@@ -23,20 +26,50 @@ const ACTIVE_SENSORS = [
   { name: 'Sentinel-2A',     agency: 'ESA',  mode: 'MSI L2A', pass: '1h 8m', live: true  },
 ]
 
+const EARTH_LAYERS: { id: EarthLayer; label: string; icon: React.ElementType; color: string }[] = [
+  { id: 'optical',       label: 'Optical',       icon: Satellite,   color: '#22C55E' },
+  { id: 'sar',           label: 'SAR',           icon: Layers,      color: '#3B82F6' },
+  { id: 'multispectral', label: 'Multispectral', icon: Layers,      color: '#F59E0B' },
+  { id: 'flood',         label: 'Flood',         icon: Waves,       color: '#60A5FA' },
+  { id: 'vegetation',    label: 'Vegetation',    icon: TreeDeciduous, color: '#22C55E' },
+  { id: 'urban',         label: 'Urban Growth',  icon: Building2,   color: '#F59E0B' },
+]
+
+const HOTSPOT_DETECTIONS = [
+  { label: 'Active flood zone',    region: 'Brahmaputra Basin',  type: 'flood',         severity: 'HIGH',   change: '+12% extent',  icon: Waves,         color: '#3B82F6' },
+  { label: 'Deforestation alert',  region: 'Western Ghats',      type: 'deforestation', severity: 'MEDIUM', change: '-840 km²',     icon: TrendingDown,  color: '#EF4444' },
+  { label: 'Urban expansion',      region: 'Delhi NCR corridor', type: 'urban',         severity: 'LOW',    change: '+2.3% YoY',    icon: Building2,     color: '#F59E0B' },
+  { label: 'Water stress',         region: 'Rajasthan plains',   type: 'water',         severity: 'HIGH',   change: 'NDWI −0.42',   icon: Waves,         color: '#EF4444' },
+  { label: 'Heat anomaly',         region: 'Vidarbha, MH',       type: 'heat',          severity: 'MEDIUM', change: '+3.2°C above', icon: Thermometer,   color: '#F59E0B' },
+]
+
 const HOTSPOT_COLORS: Record<string, string> = {
   flood: '#3B82F6', agriculture: '#22C55E',
   urban: '#F59E0B', disaster: '#EF4444', monitoring: '#14B8A6',
 }
 
+const STATUS_BADGE: Record<string, string> = {
+  ALERT:      'mission-badge mission-badge-alert',
+  ACTIVE:     'mission-badge mission-badge-active',
+  PROCESSING: 'mission-badge mission-badge-processing',
+  ARCHIVED:   'mission-badge mission-badge-archived',
+}
+
+const SEVERITY_COLOR: Record<string, string> = {
+  HIGH:   '#EF4444',
+  MEDIUM: '#F59E0B',
+  LOW:    '#64748B',
+}
+
 const fadeSlideLeft = {
   initial: { opacity: 0, x: -18 },
   animate: { opacity: 1, x: 0 },
-  transition: { duration: 0.5, ease: [0.4, 0, 0.2, 1] },
+  transition: { duration: 0.5, ease: [0.4, 0, 0.2, 1] as [number, number, number, number] },
 }
 const fadeSlideRight = {
   initial: { opacity: 0, x: 18 },
   animate: { opacity: 1, x: 0 },
-  transition: { duration: 0.5, ease: [0.4, 0, 0.2, 1] },
+  transition: { duration: 0.5, ease: [0.4, 0, 0.2, 1] as [number, number, number, number] },
 }
 
 export default function CommandCenter() {
@@ -48,7 +81,10 @@ export default function CommandCenter() {
   const toggleHotspots = useAppStore((s) => s.toggleHotspots)
   const showOrbits     = useAppStore((s) => s.showOrbits)
   const showHotspots   = useAppStore((s) => s.showHotspots)
-  const [, setTick] = useState(0)
+  const earthLayer     = useAppStore((s) => s.earthLayer)
+  const setEarthLayer  = useAppStore((s) => s.setEarthLayer)
+  const [, setTick]    = useState(0)
+  const [hotspotTab, setHotspotTab] = useState<'zones' | 'detections'>('zones')
 
   useEffect(() => {
     const t = setTimeout(() => setEarthLoaded(true), 5000)
@@ -65,12 +101,12 @@ export default function CommandCenter() {
 
   return (
     <div className="relative w-full h-full overflow-hidden">
-      {/* ── Earth — fills viewport ─────────────────────────────── */}
+      {/* Earth — fills viewport */}
       <div className="absolute inset-0">
         <EarthGlobe />
       </div>
 
-      {/* ── Loading screen ─────────────────────────────────────── */}
+      {/* Loading screen */}
       <AnimatePresence>
         {!isLoaded && (
           <motion.div
@@ -79,7 +115,7 @@ export default function CommandCenter() {
             exit={{ opacity: 0 }}
             transition={{ duration: 1.2, delay: 0.4 }}
             className="absolute inset-0 flex flex-col items-center justify-center z-50"
-            style={{ background: '#0B1220' }}
+            style={{ background: '#080D16' }}
           >
             <motion.div
               initial={{ scale: 0.85, opacity: 0 }}
@@ -88,23 +124,21 @@ export default function CommandCenter() {
               className="flex flex-col items-center gap-7"
             >
               <div
-                className="w-14 h-14 rounded-full flex items-center justify-center relative"
-                style={{ border: '1px solid rgba(59,130,246,0.2)', background: 'rgba(59,130,246,0.06)' }}
+                className="w-16 h-16 rounded-full flex items-center justify-center relative"
+                style={{ border: '1px solid rgba(59,130,246,0.18)', background: 'rgba(59,130,246,0.05)' }}
               >
                 <div
                   className="absolute inset-1 rounded-full border animate-spin"
-                  style={{
-                    borderColor: 'rgba(59,130,246,0.15)',
-                    borderTopColor: '#3B82F6',
-                  }}
+                  style={{ borderColor: 'rgba(59,130,246,0.12)', borderTopColor: '#3B82F6' }}
                 />
+                <Satellite className="w-6 h-6 text-blue-primary opacity-60" />
               </div>
               <div className="text-center">
                 <div className="font-display text-display-xl font-bold text-text-primary tracking-tight">
-                  TerraBridge X
+                  AKSHA
                 </div>
-                <div className="text-body-m text-text-tertiary mt-1.5">
-                  Earth Intelligence Operating System
+                <div className="text-body-m text-text-tertiary mt-2 tracking-wide">
+                  Earth Intelligence Beyond Imagery
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -116,15 +150,16 @@ export default function CommandCenter() {
         )}
       </AnimatePresence>
 
-      {/* ── Globe overlays ─────────────────────────────────────── */}
+      {/* Globe overlays */}
       <AnimatePresence>
         {isLoaded && (
           <>
-            {/* ── Left: Archive Status + Mission Feed ────────── */}
+            {/* ── Left: Archive Status + Mission Feed ──────────── */}
             <motion.div
               {...fadeSlideLeft}
               transition={{ ...fadeSlideLeft.transition, delay: 0.3 }}
-              className="absolute top-3 left-16 w-56 flex flex-col gap-2 z-10"
+              className="absolute top-3 left-16 w-58 flex flex-col gap-2 z-10"
+              style={{ width: 230 }}
             >
               {/* Archive stats */}
               <div className="glass-panel rounded-xl px-4 py-3.5">
@@ -187,17 +222,21 @@ export default function CommandCenter() {
                       <div className="text-caption text-text-secondary leading-snug">{item.text}</div>
                       <div className="text-overline text-text-tertiary mt-0.5 truncate">{item.sub}</div>
                     </div>
-                    <div className="text-overline text-text-tertiary flex-shrink-0 ml-1">{item.ago}</div>
+                    <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                      <div className="text-overline text-text-tertiary">{item.ago}</div>
+                      <span className={STATUS_BADGE[item.status]}>{item.status}</span>
+                    </div>
                   </div>
                 ))}
               </div>
             </motion.div>
 
-            {/* ── Right: Live Time + Sensors + Monitoring ─────── */}
+            {/* ── Right: Live Time + Sensors + Hotspot Detections ─ */}
             <motion.div
               {...fadeSlideRight}
               transition={{ ...fadeSlideRight.transition, delay: 0.45 }}
-              className="absolute top-3 right-16 w-52 flex flex-col gap-2 z-10"
+              className="absolute top-3 right-16 flex flex-col gap-2 z-10"
+              style={{ width: 220 }}
             >
               {/* UTC clock */}
               <div className="glass-panel rounded-xl px-4 py-2.5 flex items-center justify-between">
@@ -243,15 +282,36 @@ export default function CommandCenter() {
                 ))}
               </div>
 
-              {/* Active monitoring zones */}
+              {/* Hotspot detections */}
               <div className="glass-panel rounded-xl overflow-hidden">
                 <div
-                  className="px-4 py-2.5"
+                  className="px-4 py-2.5 flex items-center justify-between"
                   style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}
                 >
-                  <div className="overline-label">Monitoring Zones</div>
+                  <div className="overline-label">Auto-Detected</div>
+                  <AlertTriangle className="w-3 h-3 text-warning" />
                 </div>
-                {globeHotspots.slice(0, 4).map((hs, i) => (
+                {/* Tab switcher */}
+                <div
+                  className="flex"
+                  style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}
+                >
+                  {(['zones', 'detections'] as const).map((tab) => (
+                    <button
+                      key={tab}
+                      onClick={() => setHotspotTab(tab)}
+                      className="flex-1 py-1.5 text-overline capitalize transition-all"
+                      style={{
+                        color: hotspotTab === tab ? '#F8FAFC' : '#4A5568',
+                        borderBottom: hotspotTab === tab ? '1px solid #3B82F6' : '1px solid transparent',
+                      }}
+                    >
+                      {tab}
+                    </button>
+                  ))}
+                </div>
+
+                {hotspotTab === 'zones' && globeHotspots.slice(0, 4).map((hs, i) => (
                   <div
                     key={hs.id}
                     className="flex items-center gap-2.5 px-4 py-2.5 hover:bg-white-3 transition-colors"
@@ -266,10 +326,54 @@ export default function CommandCenter() {
                     </span>
                   </div>
                 ))}
+
+                {hotspotTab === 'detections' && HOTSPOT_DETECTIONS.slice(0, 4).map((d, i) => (
+                  <div
+                    key={d.label}
+                    className="flex items-center gap-2.5 px-4 py-2.5 hover:bg-white-3 transition-colors cursor-pointer"
+                    style={i < 3 ? { borderBottom: '1px solid rgba(255,255,255,0.04)' } : {}}
+                  >
+                    <d.icon className="w-3 h-3 flex-shrink-0" style={{ color: d.color }} />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-caption text-text-secondary truncate">{d.label}</div>
+                      <div className="text-overline text-text-tertiary truncate">{d.region}</div>
+                    </div>
+                    <div
+                      className="text-overline flex-shrink-0 font-semibold"
+                      style={{ color: SEVERITY_COLOR[d.severity] }}
+                    >
+                      {d.severity}
+                    </div>
+                  </div>
+                ))}
               </div>
             </motion.div>
 
-            {/* ── Globe layer controls ─────────────────────────── */}
+            {/* ── Multi-Layer Earth View toggle ─────────────────── */}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.55, duration: 0.4 }}
+              className="absolute left-1/2 -translate-x-1/2 top-3 z-10"
+            >
+              <div
+                className="glass-panel rounded-xl px-4 py-2 flex items-center gap-1.5"
+              >
+                <span className="text-overline text-text-tertiary mr-1">LAYER</span>
+                {EARTH_LAYERS.map(({ id, label, color }) => (
+                  <button
+                    key={id}
+                    onClick={() => setEarthLayer(id)}
+                    className={cn('layer-btn', earthLayer === id ? 'layer-btn-active' : 'layer-btn-inactive')}
+                    style={earthLayer === id ? { borderColor: `${color}60`, color, background: `${color}12` } : {}}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </motion.div>
+
+            {/* ── Globe layer controls ───────────────────────────── */}
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -294,7 +398,7 @@ export default function CommandCenter() {
               </button>
             </motion.div>
 
-            {/* ── Bottom coordinate bar ───────────────────────── */}
+            {/* ── Bottom coordinate bar ─────────────────────────── */}
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -315,10 +419,14 @@ export default function CommandCenter() {
                 </div>
                 <div className="w-px h-3" style={{ background: 'rgba(45,55,72,0.5)' }} />
                 <div className="font-mono text-caption text-text-tertiary">Alt 512m MSL</div>
+                <div className="w-px h-3" style={{ background: 'rgba(45,55,72,0.5)' }} />
+                <div className="font-mono text-caption text-text-tertiary uppercase tracking-wider" style={{ color: '#60A5FA' }}>
+                  {earthLayer} layer
+                </div>
               </div>
             </motion.div>
 
-            {/* ── Quick actions ─────────────────────────────────── */}
+            {/* ── Quick actions ──────────────────────────────────── */}
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -332,10 +440,16 @@ export default function CommandCenter() {
                 Upload & Search
               </button>
               <button
+                onClick={() => setActiveView('satellite-tracker')}
+                className="glass-panel text-text-secondary text-body-s px-5 py-2.5 rounded-lg hover:text-text-primary transition-all"
+              >
+                Live Sat. Tracker
+              </button>
+              <button
                 onClick={toggleCopilot}
                 className="glass-panel text-text-secondary text-body-s px-5 py-2.5 rounded-lg hover:text-text-primary transition-all"
               >
-                Ask Copilot
+                Ask AKSHA Copilot
               </button>
             </motion.div>
           </>

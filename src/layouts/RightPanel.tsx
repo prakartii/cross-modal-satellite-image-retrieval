@@ -6,9 +6,9 @@ import ExplainabilityPanel from '@/components/explainability/ExplainabilityPanel
 import CopilotPanel from '@/components/copilot/CopilotPanel'
 
 const PANEL_ITEMS = [
-  { id: 'copilot',  icon: Sparkles,   label: 'AI Copilot'   },
-  { id: 'insights', icon: BarChart3,  label: 'Insights'     },
-  { id: 'missions', icon: FolderOpen, label: 'Missions'     },
+  { id: 'copilot',  icon: Sparkles,   label: 'AKSHA Copilot' },
+  { id: 'insights', icon: BarChart3,  label: 'Insights'      },
+  { id: 'missions', icon: FolderOpen, label: 'Missions'      },
 ]
 
 interface RightPanelProps {
@@ -110,7 +110,7 @@ export default function RightPanel({ activeSection, onSectionChange }: RightPane
           >
             <div className="w-[360px] h-full flex flex-col">
               <PanelHeader
-                title="AI Earth Copilot"
+                title="AKSHA Copilot"
                 icon={<Sparkles className="w-3.5 h-3.5 text-teal-primary" />}
                 onClose={toggleCopilot}
               />

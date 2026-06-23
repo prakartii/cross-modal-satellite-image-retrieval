@@ -15,8 +15,12 @@ export default function AICopilotPage() {
       <EarthGlobe />
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
         <div className="text-center">
-          <div className="text-heading-1 text-text-secondary/40 mb-2">AI Earth Copilot</div>
-          <div className="text-body-m text-text-tertiary/40">Open the copilot panel on the right to interact</div>
+          <div className="font-display text-display-xl font-bold text-text-primary tracking-tight opacity-10">
+            AKSHA
+          </div>
+          <div className="text-body-m text-text-tertiary opacity-30 mt-2">
+            Copilot panel open on the right
+          </div>
         </div>
       </div>
     </div>

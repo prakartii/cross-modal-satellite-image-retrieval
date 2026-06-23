@@ -105,7 +105,7 @@ export default function FallbackEarth({ message }: { message?: string }) {
 
       {/* Status */}
       <div className="text-center space-y-1.5">
-        <div className="font-display text-heading-1 text-text-primary">TerraBridge X</div>
+        <div className="font-display text-heading-1 text-text-primary">AKSHA</div>
         <div className="text-body-s text-text-tertiary">
           {message ?? 'Earth visualization initializing...'}
         </div>

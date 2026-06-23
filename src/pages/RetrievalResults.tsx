@@ -8,10 +8,10 @@ import ComparisonView from '@/components/retrieval/ComparisonView'
 import { cn } from '@/lib/utils'
 
 const VIEW_TABS = [
-  { id: 'gallery',  label: 'Intelligence View', icon: LayoutGrid },
-  { id: 'earth',    label: 'Earth View',         icon: Globe      },
-  { id: 'compare',  label: 'Compare',            icon: GitCompare },
-  { id: 'timeline', label: 'Timeline',           icon: Clock      },
+  { id: 'gallery',  label: 'Intelligence View',    icon: LayoutGrid },
+  { id: 'earth',    label: 'Earth View',            icon: Globe      },
+  { id: 'compare',  label: 'Sensor Fusion Swipe',  icon: GitCompare },
+  { id: 'timeline', label: 'Intelligence Timeline', icon: Clock      },
 ] as const
 
 export default function RetrievalResults() {

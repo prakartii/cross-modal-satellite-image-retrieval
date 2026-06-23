@@ -70,7 +70,7 @@ export default function Analytics() {
       <div className="px-8 py-6" style={{ borderBottom: '1px solid rgba(45,55,72,0.25)' }}>
         <div className="flex items-end justify-between">
           <div>
-            <div className="overline-label mb-1.5">TerraBridge X · Intelligence Platform</div>
+            <div className="overline-label mb-1.5">AKSHA · Earth Intelligence Platform</div>
             <h1 className="text-heading-1 text-text-primary font-semibold">System Analytics</h1>
             <p className="text-body-s text-text-tertiary mt-1">
               Cross-modal retrieval performance · updated {new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
