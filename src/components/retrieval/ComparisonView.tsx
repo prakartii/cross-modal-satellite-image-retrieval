@@ -5,7 +5,7 @@ import SensorChip from '@/components/ui/SensorChip'
 import SimilarityBadge from '@/components/ui/SimilarityBadge'
 import CoordinateDisplay from '@/components/ui/CoordinateDisplay'
 import { mockQueryImage } from '@/data/mockResults'
-import type { RetrievalResult } from '@/types'
+import type { RetrievalResult, QueryImage } from '@/types'
 
 const MODES = ['swipe', 'side-by-side', 'blend', 'difference'] as const
 type Mode = typeof MODES[number]
@@ -17,8 +17,24 @@ const FEATURE_ALIGNMENT = [
 ]
 
 export default function ComparisonView() {
-  const results        = useAppStore((s) => s.results)
-  const selectedResult = useAppStore((s) => s.selectedResult) ?? results[0]
+  const results           = useAppStore((s) => s.results)
+  const selectedResult    = useAppStore((s) => s.selectedResult) ?? results[0]
+  const queryThumbnailB64 = useAppStore((s) => s.queryThumbnailB64)
+  const uploadedImage     = useAppStore((s) => s.uploadedImage)
+
+  // Use the real uploaded image thumbnail when a mission is active, else demo image
+  const queryImg: QueryImage = queryThumbnailB64
+    ? {
+        id:           'mission-query',
+        name:         uploadedImage?.name ?? 'Query Image',
+        sensorType:   uploadedImage?.sensorType ?? 'SAR',
+        satellite:    uploadedImage?.satellite ?? 'Uploaded',
+        resolution:   uploadedImage?.resolution ?? '—',
+        thumbnailUrl: `data:image/png;base64,${queryThumbnailB64}`,
+        coords:       uploadedImage?.coords,
+      }
+    : (mockQueryImage as QueryImage)
+
   const [opacity, setOpacity] = useState(50)
   const [mode, setMode]       = useState<Mode>('swipe')
   const [swipePos, setSwipePos]   = useState(50)
@@ -109,18 +125,19 @@ export default function ComparisonView() {
       <div className="flex-1 overflow-hidden min-h-0">
         {mode === 'swipe' ? (
           <SwipeView
-            leftImage={mockQueryImage.thumbnailUrl}
+            leftImage={queryImg.thumbnailUrl}
             rightImage={selectedResult.thumbnailUrl}
             swipePos={swipePos}
             containerRef={containerRef}
             onMouseDown={handleMouseDown}
             onTouchMove={handleTouchMove}
-            leftLabel={`SAR · ${mockQueryImage.satellite}`}
+            leftLabel={`SAR · ${queryImg.satellite}`}
             rightLabel={`${selectedResult.sensorType} · ${selectedResult.satellite}`}
           />
         ) : (
           <SideBySideView
             selectedResult={selectedResult}
+            queryImage={queryImg}
             opacity={opacity}
             mode={mode}
           />
@@ -298,8 +315,9 @@ function SwipeView({ leftImage, rightImage, swipePos, containerRef, onMouseDown,
 
 // ── Side-by-side / Blend / Difference ────────────────────────────────────────
 
-function SideBySideView({ selectedResult, opacity, mode }: {
+function SideBySideView({ selectedResult, queryImage, opacity, mode }: {
   selectedResult: RetrievalResult
+  queryImage: QueryImage
   opacity: number
   mode: Mode
 }) {
@@ -311,14 +329,14 @@ function SideBySideView({ selectedResult, opacity, mode }: {
           style={{ borderBottom: '1px solid rgba(45,55,72,0.22)' }}
         >
           <div className="flex items-center gap-2.5">
-            <SensorChip type={mockQueryImage.sensorType} size="sm" />
-            <span className="text-body-s text-text-secondary">Query — SAR Image</span>
+            <SensorChip type={queryImage.sensorType} size="sm" />
+            <span className="text-body-s text-text-secondary">Query — {queryImage.sensorType} Image</span>
           </div>
-          <span className="mono-value">{mockQueryImage.resolution}</span>
+          <span className="mono-value">{queryImage.resolution}</span>
         </div>
         <div className="flex-1 relative overflow-hidden">
           <img
-            src={mockQueryImage.thumbnailUrl}
+            src={queryImage.thumbnailUrl}
             alt="Query"
             className="absolute inset-0 w-full h-full object-cover"
           />
@@ -326,11 +344,11 @@ function SideBySideView({ selectedResult, opacity, mode }: {
             className="absolute bottom-3 left-3 px-2.5 py-1 rounded text-caption text-text-secondary"
             style={{ background: 'rgba(8,13,22,0.85)', border: '1px solid rgba(45,55,72,0.3)' }}
           >
-            {mockQueryImage.satellite}
+            {queryImage.satellite}
           </div>
         </div>
         <div className="px-5 py-3" style={{ borderTop: '1px solid rgba(45,55,72,0.22)' }}>
-          <CoordinateDisplay coords={mockQueryImage.coords!} />
+          <CoordinateDisplay coords={queryImage.coords ?? { lat: 0, lng: 0 }} />
           <div className="text-caption text-text-tertiary mt-1">SAR backscatter · σ₀</div>
         </div>
       </div>

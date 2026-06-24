@@ -18,11 +18,11 @@ import {
 } from './atmosphereShader'
 
 const EARTH_RADIUS  = 1.45
-const ORBIT_RADIUS  = EARTH_RADIUS * 1.17   // ~1.70
+const ORBIT_RADIUS  = EARTH_RADIUS * 1.17
 const CLOUD_RADIUS  = EARTH_RADIUS + 0.007
 const ATMO_RADIUS   = EARTH_RADIUS + 0.11
+const TRAIL_STEPS   = 22  // number of trail dots
 
-// ─── Inner class error boundary — falls back to procedural Earth mesh ───────
 class TextureErrorBoundary extends Component<
   { children: ReactNode; fallback: ReactNode },
   { err: boolean }
@@ -36,7 +36,6 @@ class TextureErrorBoundary extends Component<
   render() { return this.state.err ? this.props.fallback : this.props.children }
 }
 
-// ─── Shared earth geometry / material (textures passed as props) ─────────────
 interface EarthMeshCoreProps {
   isRotating: boolean
   dayTex:    THREE.Texture
@@ -53,16 +52,17 @@ function EarthMeshCore({ isRotating, dayTex, normalTex, specTex }: EarthMeshCore
 
   const earthMat = useMemo(() => {
     const mat = new THREE.MeshPhongMaterial({
-      map:              dayTex,
-      emissiveMap:      nightTex,
-      emissive:         new THREE.Color(0.5, 0.38, 0.12),
-      emissiveIntensity: 0.5,
-      specular:         new THREE.Color(0.35, 0.45, 0.68),
-      shininess:        28,
+      map:               dayTex,
+      emissiveMap:       nightTex,
+      emissive:          new THREE.Color(0.48, 0.36, 0.10),
+      emissiveIntensity: 0.38,
+      // Reduce specular drastically — less plastic/metallic look
+      specular:          new THREE.Color(0.08, 0.12, 0.22),
+      shininess:         6,
     })
     if (normalTex) {
       mat.normalMap   = normalTex
-      mat.normalScale = new THREE.Vector2(0.85, 0.85)
+      mat.normalScale = new THREE.Vector2(0.65, 0.65)
     }
     if (specTex) {
       mat.specularMap = specTex
@@ -74,7 +74,7 @@ function EarthMeshCore({ isRotating, dayTex, normalTex, specTex }: EarthMeshCore
     alphaMap:    cloudTex,
     transparent: true,
     depthWrite:  false,
-    opacity:     0.82,
+    opacity:     0.72,
     color:       new THREE.Color(1, 1, 1),
   }), [cloudTex])
 
@@ -101,44 +101,24 @@ function EarthMeshCore({ isRotating, dayTex, normalTex, specTex }: EarthMeshCore
   )
 }
 
-// ─── Textured Earth: loads real high-res textures via Suspense ───────────────
 function TexturedEarth({ isRotating }: { isRotating: boolean }) {
   const [dayTex, normalTex, specTex] = useLoader(THREE.TextureLoader, [
     '/textures/earth_day.jpg',
     '/textures/earth_normal.jpg',
     '/textures/earth_specular.jpg',
   ])
-
-  // Enable anisotropy for sharper texture at oblique angles
   dayTex.anisotropy    = 8
   normalTex.anisotropy = 4
   specTex.anisotropy   = 4
-
-  return (
-    <EarthMeshCore
-      isRotating={isRotating}
-      dayTex={dayTex}
-      normalTex={normalTex}
-      specTex={specTex}
-    />
-  )
+  return <EarthMeshCore isRotating={isRotating} dayTex={dayTex} normalTex={normalTex} specTex={specTex} />
 }
 
-// ─── Procedural fallback Earth (zero network requests) ──────────────────────
 function ProceduralEarth({ isRotating }: { isRotating: boolean }) {
   const dayTex = useMemo(() => createEarthDayTexture(), [])
   useEffect(() => () => dayTex.dispose(), [dayTex])
-  return (
-    <EarthMeshCore
-      isRotating={isRotating}
-      dayTex={dayTex}
-      normalTex={null}
-      specTex={null}
-    />
-  )
+  return <EarthMeshCore isRotating={isRotating} dayTex={dayTex} normalTex={null} specTex={null} />
 }
 
-// ─── Fresnel atmosphere glow (custom GLSL, BackSide sphere) ─────────────────
 function AtmosphereGlow() {
   const atmoMat = useMemo(() => new THREE.ShaderMaterial({
     vertexShader:   atmosphereVertexShader,
@@ -148,9 +128,7 @@ function AtmosphereGlow() {
     transparent:    true,
     depthWrite:     false,
   }), [])
-
   useEffect(() => () => atmoMat.dispose(), [atmoMat])
-
   return (
     <mesh material={atmoMat}>
       <sphereGeometry args={[ATMO_RADIUS, 32, 32]} />
@@ -158,12 +136,32 @@ function AtmosphereGlow() {
   )
 }
 
-// ─── Satellite orbit paths ──────────────────────────────────────────────────
-function SatelliteOrbitPath({
-  inclination, phaseOffset, color, period,
-}: { inclination: number; phaseOffset: number; color: string; period: number }) {
+// ─── Satellite orbit with animated trail ─────────────────────────────────────
+interface SatelliteOrbitPathProps {
+  inclination: number
+  phaseOffset: number
+  color: string
+  period: number
+  name?: string
+}
+
+function SatelliteOrbitPath({ inclination, phaseOffset, color, period, name }: SatelliteOrbitPathProps) {
   const dotRef = useRef<THREE.Mesh>(null)
 
+  // Pre-build trail geometry with mutable positions buffer
+  const trailPositions = useRef(new Float32Array(TRAIL_STEPS * 3))
+  const trailGeo = useMemo(() => {
+    const geo = new THREE.BufferGeometry()
+    geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(TRAIL_STEPS * 3), 3))
+    return geo
+  }, [])
+
+  const trailLine = useMemo(() => {
+    const mat = new THREE.LineBasicMaterial({ color: new THREE.Color(color), transparent: true, opacity: 0.62 })
+    return new THREE.Line(trailGeo, mat)
+  }, [trailGeo, color])
+
+  // Full orbit ring
   const orbitPts = useMemo(() => {
     const incRad = (inclination * Math.PI) / 180
     const pts: THREE.Vector3[] = []
@@ -178,39 +176,79 @@ function SatelliteOrbitPath({
     return pts
   }, [inclination])
 
-  const orbitGeo = useMemo(() =>
-    new THREE.BufferGeometry().setFromPoints(orbitPts), [orbitPts])
+  const orbitGeo = useMemo(() => new THREE.BufferGeometry().setFromPoints(orbitPts), [orbitPts])
+  const orbitLine = useMemo(() => new THREE.Line(
+    orbitGeo,
+    new THREE.LineBasicMaterial({ color: new THREE.Color(color), transparent: true, opacity: 0.13 })
+  ), [orbitGeo, color])
 
-  const orbitMat = useMemo(() => new THREE.LineBasicMaterial({
-    color: new THREE.Color(color), transparent: true, opacity: 0.18,
-  }), [color])
-
+  // Dot material (slightly larger, brighter)
   const dotMat = useMemo(() => new THREE.MeshBasicMaterial({
-    color: new THREE.Color(color), transparent: true, opacity: 0.8,
+    color: new THREE.Color(color), transparent: true, opacity: 0.92,
   }), [color])
+
+  // Pulsing ring
+  const ringRef    = useRef<THREE.Mesh>(null)
+  const ringMat    = useMemo(() => new THREE.MeshBasicMaterial({ color: new THREE.Color(color), transparent: true, opacity: 0.5, side: THREE.FrontSide }), [color])
+  const ringGeo    = useMemo(() => new THREE.RingGeometry(0.016, 0.022, 12), [])
 
   useEffect(() => () => {
-    orbitGeo.dispose(); orbitMat.dispose(); dotMat.dispose()
-  }, [orbitGeo, orbitMat, dotMat])
+    trailGeo.dispose(); trailLine.material.dispose()
+    orbitGeo.dispose(); orbitLine.material.dispose()
+    dotMat.dispose(); ringMat.dispose(); ringGeo.dispose()
+  }, [trailGeo, trailLine, orbitGeo, orbitLine, dotMat, ringMat, ringGeo])
 
-  useFrame(({ clock }) => {
-    if (!dotRef.current) return
+  useFrame(({ clock, camera }) => {
     const incRad = (inclination * Math.PI) / 180
-    const angle  = ((clock.getElapsedTime() * 0.6 / period + phaseOffset) % 1) * Math.PI * 2
-    dotRef.current.position.set(
-      Math.cos(angle) * ORBIT_RADIUS,
-      Math.sin(angle) * Math.sin(incRad) * ORBIT_RADIUS,
-      Math.sin(angle) * Math.cos(incRad) * ORBIT_RADIUS,
-    )
+    const t      = clock.getElapsedTime()
+    const angle  = ((t * 0.6 / period + phaseOffset) % 1) * Math.PI * 2
+
+    // Satellite dot position
+    const sx = Math.cos(angle) * ORBIT_RADIUS
+    const sy = Math.sin(angle) * Math.sin(incRad) * ORBIT_RADIUS
+    const sz = Math.sin(angle) * Math.cos(incRad) * ORBIT_RADIUS
+
+    if (dotRef.current) {
+      dotRef.current.position.set(sx, sy, sz)
+    }
+
+    // Pulsing ring billboard toward camera
+    if (ringRef.current) {
+      ringRef.current.position.set(sx, sy, sz)
+      ringRef.current.quaternion.copy(camera.quaternion)
+      const pulse = 0.5 + Math.sin(t * 2.8) * 0.5
+      const s     = 1 + pulse * 0.6
+      ringRef.current.scale.setScalar(s)
+      ringMat.opacity = (1 - pulse) * 0.55
+    }
+
+    // Trail: arc spanning 0.45 radians behind current position
+    const TRAIL_SPAN = 0.45
+    const buf = trailPositions.current
+    for (let i = 0; i < TRAIL_STEPS; i++) {
+      const trailAngle = angle - (i / (TRAIL_STEPS - 1)) * TRAIL_SPAN
+      const tx = Math.cos(trailAngle) * ORBIT_RADIUS
+      const ty = Math.sin(trailAngle) * Math.sin(incRad) * ORBIT_RADIUS
+      const tz = Math.sin(trailAngle) * Math.cos(incRad) * ORBIT_RADIUS
+      const idx = (TRAIL_STEPS - 1 - i) * 3
+      buf[idx]     = tx
+      buf[idx + 1] = ty
+      buf[idx + 2] = tz
+    }
+    const posAttr = trailGeo.attributes.position as THREE.BufferAttribute
+    posAttr.array.set(buf)
+    posAttr.needsUpdate = true
+    trailGeo.setDrawRange(0, TRAIL_STEPS)
   })
 
   return (
     <group>
-      <primitive object={new THREE.Line(orbitGeo, orbitMat)} />
-      <mesh ref={dotRef}>
-        <sphereGeometry args={[0.010, 8, 8]} />
-        <primitive object={dotMat} />
+      <primitive object={orbitLine} />
+      <primitive object={trailLine} />
+      <mesh ref={dotRef} material={dotMat}>
+        <sphereGeometry args={[0.014, 10, 10]} />
       </mesh>
+      <mesh ref={ringRef} geometry={ringGeo} material={ringMat} />
     </group>
   )
 }
@@ -289,7 +327,7 @@ function ResultArcs({ results }: { results: RetrievalResult[] }) {
   )
 }
 
-// ─── Smooth camera fly-to ───────────────────────────────────────────────────
+// ─── Camera controller ──────────────────────────────────────────────────────
 function CameraController() {
   const { camera } = useThree()
   const focusedCoords = useAppStore((s) => s.focusedCoords)
@@ -301,33 +339,37 @@ function CameraController() {
     targetRef.current.set(tx, ty, tz)
   }, [focusedCoords])
 
-  useFrame(() => {
-    camera.position.lerp(targetRef.current, 0.035)
-  })
-
+  useFrame(() => { camera.position.lerp(targetRef.current, 0.035) })
   return null
 }
 
-// ─── Lighting — strong sun + very low ambient for real day/night ─────────────
+// ─── Lighting — sun + terminator-aware fill ──────────────────────────────────
 function Lighting() {
+  // Sun position drifts slowly to simulate Earth rotation relative to sun
+  const sunRef = useRef<THREE.DirectionalLight>(null)
+  useFrame(({ clock }) => {
+    if (!sunRef.current) return
+    const t = clock.getElapsedTime() * 0.008
+    sunRef.current.position.set(
+      Math.cos(t) * 8,
+      2.5,
+      Math.sin(t) * 6,
+    )
+  })
+
   return (
     <>
-      {/* Very low ambient — night side should be nearly dark */}
-      <ambientLight intensity={0.04} color="#b8c8e8" />
-      {/* Primary sun — warm, strong directional */}
-      <directionalLight
-        position={[8, 3, 5]}
-        intensity={3.4}
-        color="#FFF2E4"
-        castShadow
-      />
-      {/* Subtle cool backfill — prevents total black on back hemisphere */}
-      <pointLight position={[-7, -3, -6]} intensity={0.18} color="#0a0a28" />
+      {/* Very low ambient — night side stays dark */}
+      <ambientLight intensity={0.038} color="#b0c0e0" />
+      {/* Primary sun — warm, drifts with time */}
+      <directionalLight ref={sunRef} position={[8, 2.5, 5]} intensity={3.8} color="#FFF4E8" castShadow />
+      {/* Subtle cold backfill to prevent pitch-black back hemisphere */}
+      <pointLight position={[-7, -2, -6]} intensity={0.14} color="#050520" />
     </>
   )
 }
 
-// ─── Full scene inside Canvas ───────────────────────────────────────────────
+// ─── Full scene ─────────────────────────────────────────────────────────────
 function EarthScene() {
   const results    = useAppStore((s) => s.results)
   const showOrbits = useAppStore((s) => s.showOrbits)
@@ -338,17 +380,16 @@ function EarthScene() {
   return (
     <>
       <Lighting />
-      <Stars radius={280} depth={55} count={4000} factor={2.8} fade speed={0.2} />
-      {/* Atmosphere glow rendered first (BackSide, no depth-write) */}
+      <Stars radius={300} depth={60} count={5000} factor={3.0} fade speed={0.15} saturation={0.1} />
       <AtmosphereGlow />
-      {/* Try real textures → fall back to procedural seamlessly */}
       <TextureErrorBoundary fallback={proceduralFallback}>
         <Suspense fallback={proceduralFallback}>
           <TexturedEarth isRotating={isRotating} />
         </Suspense>
       </TextureErrorBoundary>
       {showOrbits && satelliteOrbits.map((o) => (
-        <SatelliteOrbitPath key={o.id} {...o} />
+        <SatelliteOrbitPath key={o.id} inclination={o.inclination} phaseOffset={o.phaseOffset}
+          color={o.color} period={o.period} name={o.name} />
       ))}
       <Hotspots />
       <ResultArcs results={results} />
@@ -358,11 +399,7 @@ function EarthScene() {
 }
 
 // ─── Canvas wrapper ──────────────────────────────────────────────────────────
-interface EarthGlobeProps {
-  className?: string
-}
-
-export default function EarthGlobe({ className = '' }: EarthGlobeProps) {
+export default function EarthGlobe({ className = '' }: { className?: string }) {
   const setEarthLoaded = useAppStore((s) => s.setEarthLoaded)
 
   return (
@@ -371,21 +408,10 @@ export default function EarthGlobe({ className = '' }: EarthGlobeProps) {
         <Canvas
           camera={{ position: [0, 0.25, 4.5], fov: 44 }}
           dpr={[1, Math.min(window.devicePixelRatio, 1.5)]}
-          gl={{
-            antialias:                  true,
-            alpha:                      true,
-            powerPreference:            'high-performance',
-            failIfMajorPerformanceCaveat: false,
-          }}
+          gl={{ antialias: true, alpha: true, powerPreference: 'high-performance', failIfMajorPerformanceCaveat: false }}
           shadows
           onCreated={({ gl }) => {
-            gl.domElement.addEventListener('webglcontextlost', (e) => {
-              e.preventDefault()
-              console.warn('[EarthGlobe] WebGL context lost')
-            })
-            gl.domElement.addEventListener('webglcontextrestored', () => {
-              console.info('[EarthGlobe] WebGL context restored')
-            })
+            gl.domElement.addEventListener('webglcontextlost', (e) => { e.preventDefault() })
             setTimeout(() => setEarthLoaded(true), 1200)
           }}
         >
