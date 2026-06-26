@@ -15,9 +15,12 @@ const VIEW_TABS = [
 ] as const
 
 export default function RetrievalResults() {
-  const viewMode    = useAppStore((s) => s.viewMode)
-  const setViewMode = useAppStore((s) => s.setViewMode)
-  const results     = useAppStore((s) => s.results)
+  const viewMode         = useAppStore((s) => s.viewMode)
+  const setViewMode      = useAppStore((s) => s.setViewMode)
+  const results          = useAppStore((s) => s.results)
+  const activeMission    = useAppStore((s) => s.activeMission)
+  const missionAnalytics = useAppStore((s) => s.missionAnalytics)
+  const backendAvailable = useAppStore((s) => s.backendAvailable)
 
   if (results.length === 0) {
     return (
@@ -56,8 +59,29 @@ export default function RetrievalResults() {
             {label}
           </button>
         ))}
-        <div className="ml-auto font-mono text-caption text-text-tertiary">
-          <span className="text-text-primary">{results.length}</span> results
+        <div className="ml-auto flex items-center gap-3">
+          {activeMission && (
+            <div className="flex items-center gap-1.5">
+              <div className="w-1.5 h-1.5 rounded-full bg-blue-primary flex-shrink-0" />
+              <span className="text-caption text-text-secondary font-medium truncate max-w-[220px]">
+                {activeMission.name}
+              </span>
+            </div>
+          )}
+          {backendAvailable === false && (
+            <span className="text-overline px-2 py-0.5 rounded font-medium"
+              style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.25)', color: '#F59E0B' }}>
+              DEMO MODE
+            </span>
+          )}
+          {missionAnalytics && (
+            <span className="font-mono text-caption" style={{ color: '#22C55E' }}>
+              {missionAnalytics.confidence.overall}% confidence
+            </span>
+          )}
+          <span className="font-mono text-caption text-text-tertiary">
+            <span className="text-text-primary">{results.length}</span> archive scenes
+          </span>
         </div>
       </div>
 

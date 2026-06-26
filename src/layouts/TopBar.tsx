@@ -21,9 +21,18 @@ export default function TopBar() {
   const setActiveView     = useAppStore((s) => s.setActiveView)
   const setCommandPalette = useAppStore((s) => s.setCommandPalette)
   const activeMission     = useAppStore((s) => s.activeMission)
+  const currentMission    = useAppStore((s) => s.currentMission)
+  const uploadedImage     = useAppStore((s) => s.uploadedImage)
   const isSearching       = useAppStore((s) => s.isSearching)
   const searchComplete    = useAppStore((s) => s.searchComplete)
+  const backendAvailable  = useAppStore((s) => s.backendAvailable)
   const [missionDropdown, setMissionDropdown] = useState(false)
+
+  const missionLabel =
+    activeMission?.name
+    ?? (isSearching   ? 'Processing…'
+      : uploadedImage ? `${uploadedImage.name.split('.')[0].slice(0, 26)} — Ready`
+      : 'No mission active')
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 h-13 topbar-glass">
@@ -90,20 +99,30 @@ export default function TopBar() {
           >
             <div className={cn(
               'w-1.5 h-1.5 rounded-full flex-shrink-0',
-              isSearching    ? 'bg-warning animate-pulse' :
-              searchComplete ? 'bg-success' : 'bg-text-tertiary'
+              isSearching          ? 'bg-warning animate-pulse' :
+              searchComplete       ? 'bg-success' :
+              uploadedImage        ? 'bg-blue-primary' : 'bg-text-tertiary'
             )} />
-            <span className="text-text-secondary font-medium">
-              {activeMission?.name ?? 'No mission active'}
+            <span className="text-text-secondary font-medium truncate max-w-[200px]">
+              {missionLabel}
             </span>
             <ChevronDown className="w-3 h-3 text-text-tertiary" />
           </button>
         </div>
 
-        {/* ISRO BHUVAN live connection */}
+        {/* ISRO BHUVAN / backend status */}
         <div className="flex items-center gap-1.5 flex-shrink-0">
-          <div className="status-live" />
-          <span className="text-overline text-text-tertiary tracking-widest">BHUVAN</span>
+          {backendAvailable === false ? (
+            <>
+              <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: '#F59E0B' }} />
+              <span className="text-overline tracking-widest" style={{ color: '#F59E0B' }}>DEMO MODE</span>
+            </>
+          ) : (
+            <>
+              <div className="status-live" />
+              <span className="text-overline text-text-tertiary tracking-widest">BHUVAN</span>
+            </>
+          )}
         </div>
 
         {/* Divider */}

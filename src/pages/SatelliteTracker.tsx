@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Radio, Satellite, Clock, Eye, Signal, ChevronDown, ChevronUp } from 'lucide-react'
+import { Radio, Satellite, Clock, Eye, Signal, ChevronDown, ChevronUp, Target, Waves, MapPin, FileCheck } from 'lucide-react'
+import { useAppStore } from '@/store/useAppStore'
 import { cn } from '@/lib/utils'
 
 type MissionStatus = 'ACTIVE' | 'PROCESSING' | 'ALERT' | 'ARCHIVED'
@@ -142,6 +143,16 @@ const SATELLITES: SatelliteData[] = [
   },
 ]
 
+// Archive provenance — what each satellite contributed to the current mission
+const PROVENANCE: Record<string, { role: string; contribution: string }> = {
+  risat2b:      { role: 'Primary SAR',    contribution: 'Historical SAR archive — 3 scenes · Brahmaputra corridor · 2022–2024 flood monitoring baseline' },
+  cartosat3:    { role: 'Optical Ref',    contribution: 'High-resolution optical reference · Dibrugarh District — res-004 · 85.3% match' },
+  resourcesat2a:{ role: 'Multi-spectral', contribution: 'LISS-III vegetation baseline — Kaziranga — res-003 · NDVI / flood stress mapping' },
+  sentinel1a:   { role: 'SAR Validation', contribution: 'Sentinel-1A IW archive — Majuli Island — res-002 · 91.8% match · cross-mission validation' },
+  sentinel2a:   { role: 'Optical Match',  contribution: 'MSI Level-2A — Brahmaputra Basin — res-001 · 94.2% top match · true-color comparison' },
+  alos2:        { role: 'Deep Archive',   contribution: 'PALSAR-2 L-band — Manas River — res-005 · 82.7% match · historical flood morphology' },
+}
+
 const STATUS_CONFIG: Record<MissionStatus, { label: string; color: string; dot: string }> = {
   ACTIVE:     { label: 'ACTIVE',     color: '#14B8A6', dot: 'bg-teal-primary' },
   PROCESSING: { label: 'PROCESSING', color: '#F59E0B', dot: 'bg-warning'      },
@@ -265,9 +276,15 @@ function StatusBadge({ status }: { status: MissionStatus }) {
 }
 
 export default function SatelliteTracker() {
-  const [selected, setSelected] = useState<SatelliteData>(SATELLITES[0])
+  const [selected, setSelected]   = useState<SatelliteData>(SATELLITES[0])
   const [expandedId, setExpandedId] = useState<string | null>(SATELLITES[0].id)
   const tick = useLiveClock()
+
+  const currentMission   = useAppStore((s) => s.currentMission)
+  const activeMission    = useAppStore((s) => s.activeMission)
+  const missionAnalytics = useAppStore((s) => s.missionAnalytics)
+  const backendAvailable = useAppStore((s) => s.backendAvailable)
+  const hasMission       = !!currentMission && !!activeMission
 
   const now = new Date()
   const utcStr = now.toUTCString().slice(17, 25)
@@ -293,21 +310,52 @@ export default function SatelliteTracker() {
           <div className="flex items-center gap-2.5 mb-2">
             <div
               className="w-6 h-6 rounded flex items-center justify-center flex-shrink-0"
-              style={{ background: 'rgba(20,184,166,0.1)', border: '1px solid rgba(20,184,166,0.22)' }}
+              style={{ background: hasMission ? 'rgba(59,130,246,0.1)' : 'rgba(20,184,166,0.1)', border: hasMission ? '1px solid rgba(59,130,246,0.22)' : '1px solid rgba(20,184,166,0.22)' }}
             >
-              <Radio className="w-3.5 h-3.5 text-teal-primary" />
+              <Radio className="w-3.5 h-3.5" style={{ color: hasMission ? '#3B82F6' : '#14B8A6' }} />
             </div>
-            <h1 className="text-heading-3 text-text-primary font-semibold">Live Satellite Tracker</h1>
+            <h1 className="text-heading-3 text-text-primary font-semibold">
+              {hasMission ? 'Mission Tracker' : 'Live Satellite Tracker'}
+            </h1>
           </div>
           <p className="text-body-s text-text-tertiary leading-relaxed">
-            Real-time orbital positions · ISRO, ESA, JAXA constellation
+            {hasMission
+              ? `${activeMission.name} · RISAT-2B tasked`
+              : 'Real-time orbital positions · ISRO, ESA, JAXA constellation'}
           </p>
           <div className="flex items-center gap-1.5 mt-3">
-            <div className="status-live" />
+            <div className={hasMission ? 'w-1.5 h-1.5 rounded-full bg-blue-primary flex-shrink-0' : 'status-live'} />
             <span className="font-mono text-caption text-text-tertiary">{utcStr} UTC</span>
             <span className="text-overline text-text-tertiary ml-2">{activeSats.length} ACTIVE</span>
+            {hasMission && (
+              <span className="ml-auto text-overline font-semibold" style={{ color: '#3B82F6' }}>MISSION</span>
+            )}
           </div>
         </div>
+
+        {/* Mission Status Panel (shown when mission is active) */}
+        {hasMission && missionAnalytics && (
+          <div className="px-5 py-4" style={{ borderBottom: '1px solid rgba(45,55,72,0.25)', background: 'rgba(59,130,246,0.03)' }}>
+            <div className="overline-label mb-3" style={{ color: '#3B82F6' }}>Active Mission Status</div>
+            <div className="space-y-2">
+              {[
+                { label: 'Mission ID',       value: currentMission.id.slice(0, 18) },
+                { label: 'Sensor',           value: String(missionAnalytics.scene_info.sensor ?? '—') },
+                { label: 'AOI',              value: String(missionAnalytics.scene_info.region ?? '—').slice(0, 22) },
+                { label: 'Processing',       value: `${missionAnalytics.processing.total_seconds.toFixed(1)}s pipeline` },
+                { label: 'Archive queried',  value: `${missionAnalytics.retrieval.archive_size} scenes` },
+                { label: 'Matches found',    value: `${missionAnalytics.retrieval.total_results} retrieved` },
+                { label: 'Confidence',       value: `${missionAnalytics.confidence.overall}% · ${missionAnalytics.confidence.level}` },
+                { label: 'Report',           value: backendAvailable === false ? 'Demo mode' : 'Intelligence report ready' },
+              ].map(({ label, value }) => (
+                <div key={label} className="flex items-center justify-between gap-2">
+                  <span className="text-caption text-text-tertiary flex-shrink-0">{label}</span>
+                  <span className="font-mono text-caption text-text-secondary text-right truncate">{value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Satellite list */}
         <div className="flex-1 overflow-y-auto scrollbar-hide">
@@ -383,16 +431,30 @@ export default function SatelliteTracker() {
                           <span className="text-caption text-text-tertiary">Last contact</span>
                           <span className="text-caption text-text-secondary">{sat.lastContact}</span>
                         </div>
+                        {hasMission && (
+                          <div className="data-row">
+                            <span className="text-caption text-text-tertiary">Mission role</span>
+                            <span className="text-caption font-medium" style={{ color: '#3B82F6' }}>
+                              {PROVENANCE[sat.id as keyof typeof PROVENANCE]?.role ?? 'Archive'}
+                            </span>
+                          </div>
+                        )}
                         <div className="pt-1">
                           <div
                             className="px-2.5 py-2 rounded text-caption leading-snug"
                             style={{
-                              background: 'rgba(20,184,166,0.06)',
-                              border: '1px solid rgba(20,184,166,0.15)',
+                              background: hasMission && PROVENANCE[sat.id as keyof typeof PROVENANCE]
+                                ? 'rgba(59,130,246,0.06)'
+                                : 'rgba(20,184,166,0.06)',
+                              border: hasMission && PROVENANCE[sat.id as keyof typeof PROVENANCE]
+                                ? '1px solid rgba(59,130,246,0.18)'
+                                : '1px solid rgba(20,184,166,0.15)',
                               color: '#94A3B8',
                             }}
                           >
-                            {sat.acquisitionStatus}
+                            {hasMission && PROVENANCE[sat.id as keyof typeof PROVENANCE]
+                              ? PROVENANCE[sat.id as keyof typeof PROVENANCE].contribution
+                              : sat.acquisitionStatus}
                           </div>
                         </div>
                       </div>
@@ -509,6 +571,30 @@ export default function SatelliteTracker() {
           borderLeft: '1px solid rgba(45,55,72,0.35)',
         }}
       >
+        {/* Mission event summary (only when mission active) */}
+        {hasMission && currentMission.events[0] && (
+          <div className="px-5 pt-5 pb-4" style={{ borderBottom: '1px solid rgba(45,55,72,0.3)', background: 'rgba(239,68,68,0.04)' }}>
+            <div className="overline-label mb-2" style={{ color: '#EF4444' }}>Detected Event</div>
+            <div className="flex items-start gap-2">
+              <Waves className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" style={{ color: '#EF4444' }} />
+              <div>
+                <div className="text-body-s text-text-primary font-medium">
+                  {currentMission.events[0].event_type} — {currentMission.events[0].severity} severity
+                </div>
+                <div className="text-caption text-text-secondary mt-0.5 leading-snug">
+                  {currentMission.events[0].explanation.slice(0, 90)}…
+                </div>
+                <div className="flex items-center gap-1.5 mt-2">
+                  <Target className="w-3 h-3" style={{ color: '#F59E0B' }} />
+                  <span className="font-mono text-caption" style={{ color: '#F59E0B' }}>
+                    {(currentMission.events[0].confidence * 100).toFixed(0)}% confidence
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Satellite identity */}
         <div className="px-5 pt-6 pb-5" style={{ borderBottom: '1px solid rgba(45,55,72,0.3)' }}>
           <div className="flex items-center gap-2 mb-3">
@@ -583,9 +669,20 @@ export default function SatelliteTracker() {
           </div>
         </div>
 
+        {/* Mission Archive Contribution (shown when mission active) */}
+        {hasMission && PROVENANCE[selected.id] && (
+          <div className="px-5 py-4" style={{ borderBottom: '1px solid rgba(45,55,72,0.25)' }}>
+            <div className="overline-label mb-3" style={{ color: '#3B82F6' }}>Archive Contribution</div>
+            <div className="px-3 py-2.5 rounded-lg text-caption leading-relaxed"
+              style={{ background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.18)', color: '#94A3B8' }}>
+              {PROVENANCE[selected.id].contribution}
+            </div>
+          </div>
+        )}
+
         {/* Ground station coverage */}
         <div className="px-5 py-4">
-          <div className="overline-label mb-3">Ground Station Network</div>
+          <div className="overline-label mb-3">{hasMission ? 'Ground Station Network' : 'Ground Station Network'}</div>
           <div className="space-y-2">
             {[
               { name: 'ISTRAC Bangalore',  active: true  },

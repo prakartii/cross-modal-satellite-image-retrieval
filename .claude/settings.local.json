@@ -10,7 +10,14 @@
       "Bash(vite)",
       "Bash(tsconfig)",
       "Bash(postcss\" | head -20)",
-      "PowerShell(Head *)"
+      "PowerShell(Head *)",
+      "Bash(python -m py_compile utils/math_utils.py)",
+      "Bash(python -m py_compile services/image_loader.py)",
+      "Bash(python -m py_compile services/preprocessing.py)",
+      "Bash(python -m py_compile services/feature_extractor.py)",
+      "Bash(python -m py_compile services/embedding_generator.py)",
+      "Bash(python -c \"import json; d=json.load\\(open\\('database/embeddings.json'\\)\\); print\\('Embeddings:', len\\(d\\), 'scenes, dim:', len\\(d[0]['embedding']\\)\\)\")",
+      "Bash(python *)"
     ]
   }
 }

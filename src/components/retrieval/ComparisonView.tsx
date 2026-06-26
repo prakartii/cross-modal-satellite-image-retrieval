@@ -22,7 +22,7 @@ export default function ComparisonView() {
   const queryThumbnailB64 = useAppStore((s) => s.queryThumbnailB64)
   const uploadedImage     = useAppStore((s) => s.uploadedImage)
 
-  // Use the real uploaded image thumbnail when a mission is active, else demo image
+  // Query image priority: backend b64 > uploaded thumbnail > mock demo image
   const queryImg: QueryImage = queryThumbnailB64
     ? {
         id:           'mission-query',
@@ -33,7 +33,17 @@ export default function ComparisonView() {
         thumbnailUrl: `data:image/png;base64,${queryThumbnailB64}`,
         coords:       uploadedImage?.coords,
       }
-    : (mockQueryImage as QueryImage)
+    : uploadedImage?.thumbnailUrl
+      ? {
+          id:           'uploaded-query',
+          name:         uploadedImage.name,
+          sensorType:   uploadedImage.sensorType,
+          satellite:    uploadedImage.satellite ?? 'Uploaded Scene',
+          resolution:   uploadedImage.resolution ?? '—',
+          thumbnailUrl: uploadedImage.thumbnailUrl,
+          coords:       uploadedImage.coords,
+        }
+      : (mockQueryImage as QueryImage)
 
   const [opacity, setOpacity] = useState(50)
   const [mode, setMode]       = useState<Mode>('swipe')
@@ -100,7 +110,7 @@ export default function ComparisonView() {
         <div>
           <h2 className="text-heading-3 text-text-primary font-semibold">Sensor Fusion Swipe</h2>
           <p className="text-caption text-text-tertiary mt-0.5 font-mono">
-            SAR ↔ Optical cross-modal comparison · Result #{selectedResult.rank} · {selectedResult.similarityScore.toFixed(1)}% similarity
+            Query ↔ Reference Scene · Result #{selectedResult.rank} · {selectedResult.similarityScore.toFixed(1)}% similarity
           </p>
         </div>
         <div className="ml-auto flex items-center gap-1.5">
@@ -187,11 +197,71 @@ export default function ComparisonView() {
                     </span>
                   </div>
                   <div className="similarity-bar">
-                    <div className="similarity-bar-fill" style={{ width: `${value}%`, background: color }} />
+                    <motion.div
+                      className="similarity-bar-fill"
+                      initial={{ width: 0 }}
+                      animate={{ width: `${value}%` }}
+                      transition={{ duration: 0.6, ease: 'easeOut' }}
+                      style={{ background: color }}
+                    />
                   </div>
                 </div>
               )
             })}
+          </div>
+        </div>
+
+        {/* Change Detection Summary */}
+        <div className="pt-3" style={{ borderTop: '1px solid rgba(45,55,72,0.2)' }}>
+          <div className="overline-label mb-2">Change Detection Summary</div>
+          <div className="grid grid-cols-4 gap-3">
+            {[
+              {
+                label: 'Water extent',
+                value: `+${(selectedResult.featureSimilarity.water - 52).toFixed(0)}pp`,
+                sub: 'vs baseline',
+                color: '#3B82F6',
+                up: true,
+              },
+              {
+                label: 'Vegetation',
+                value: `−${(selectedResult.featureSimilarity.vegetation - 44).toFixed(0)}pp`,
+                sub: 'NDVI change',
+                color: '#22C55E',
+                up: false,
+              },
+              {
+                label: 'Cloud cover',
+                value: `${selectedResult.cloudCover.toFixed(0)}%`,
+                sub: `ref vs 14% query`,
+                color: selectedResult.cloudCover > 20 ? '#F59E0B' : '#14B8A6',
+                up: selectedResult.cloudCover < 14,
+              },
+              {
+                label: 'Mission conf.',
+                value: '78%',
+                sub: 'overall score',
+                color: '#3B82F6',
+                up: true,
+              },
+            ].map(({ label, value, sub, color }) => (
+              <motion.div key={label} className="px-3 py-2 rounded-lg"
+                whileHover={{ y: -1, boxShadow: `0 4px 12px ${color}18` }}
+                transition={{ duration: 0.15 }}
+                style={{ background: 'rgba(17,24,39,0.5)', border: '1px solid rgba(45,55,72,0.25)' }}>
+                <div className="font-mono text-body-s font-bold mb-0.5" style={{ color }}>{value}</div>
+                <div className="text-overline text-text-secondary">{label}</div>
+                <div className="text-overline text-text-tertiary mt-0.5">{sub}</div>
+              </motion.div>
+            ))}
+          </div>
+          <div className="flex items-center justify-between mt-2">
+            <span className="text-overline text-text-tertiary font-mono">
+              Query: {queryImg.satellite} · {queryImg.sensorType} · Sep 2024
+            </span>
+            <span className="text-overline text-text-tertiary font-mono">
+              Archive: {selectedResult.satellite} · {new Date(selectedResult.timestamp).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' })}
+            </span>
           </div>
         </div>
       </div>
@@ -360,7 +430,7 @@ function SideBySideView({ selectedResult, queryImage, opacity, mode }: {
         >
           <div className="flex items-center gap-2.5">
             <SensorChip type={selectedResult.sensorType} size="sm" />
-            <span className="text-body-s text-text-secondary">Result #{selectedResult.rank} — {selectedResult.sensorType}</span>
+            <span className="text-body-s text-text-secondary">Reference Scene #{selectedResult.rank} — {selectedResult.sensorType}</span>
           </div>
           <SimilarityBadge score={selectedResult.similarityScore} size="sm" />
         </div>

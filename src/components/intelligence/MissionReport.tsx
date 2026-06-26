@@ -100,7 +100,7 @@ export default function MissionReportPanel() {
             {/* ── Footer ──────────────────────────────────────────────── */}
             <div className="pt-4 flex items-center justify-between text-overline text-text-tertiary"
               style={{ borderTop: '1px solid rgba(45,55,72,0.25)' }}>
-              <span>{report.analyst_version}</span>
+              <span>AKSHA Intelligence v3.0</span>
               <span>{report.generated_at}</span>
             </div>
           </div>

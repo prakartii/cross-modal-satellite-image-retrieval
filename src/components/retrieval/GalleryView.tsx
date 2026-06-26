@@ -67,6 +67,7 @@ export default function GalleryView() {
   const selectedResult     = useAppStore((s) => s.selectedResult)
   const selectResult       = useAppStore((s) => s.selectResult)
   const openExplainability = useAppStore((s) => s.openExplainability)
+  const activeMission      = useAppStore((s) => s.activeMission)
 
   const [detailOpen, setDetailOpen] = useState(false)
   const [activeTab, setActiveTab]   = useState<Tab>('overview')
@@ -90,7 +91,7 @@ export default function GalleryView() {
           <div>
             <div className="text-heading-3 text-text-primary font-semibold">Intelligence Results</div>
             <div className="font-mono text-caption text-text-tertiary mt-0.5">
-              {results.length} scenes · SAR→Cross-Modal · MSN-24062
+              {results.length} archive scenes · SAR→Cross-Modal · {activeMission?.id.slice(0, 14) ?? 'BHUVAN'}
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -148,9 +149,10 @@ function ResultRow({ result, index, selected, onSelect }: {
 
   return (
     <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+      whileHover={{ backgroundColor: selected ? 'rgba(59,130,246,0.08)' : 'rgba(255,255,255,0.02)' }}
       transition={{ delay: index * 0.035, duration: 0.22 }}
       onClick={onSelect}
-      className="flex items-center gap-3.5 px-5 py-3 cursor-pointer transition-all duration-150 group relative"
+      className="flex items-center gap-3.5 px-5 py-3 cursor-pointer group relative"
       style={{ borderBottom: '1px solid rgba(45,55,72,0.2)', background: selected ? 'rgba(59,130,246,0.06)' : 'transparent' }}>
 
       {selected && <div className="absolute left-0 top-0 bottom-0 w-0.5 rounded-r" style={{ background: '#3B82F6' }} />}
@@ -166,7 +168,7 @@ function ResultRow({ result, index, selected, onSelect }: {
 
       <div className="flex-1 min-w-0">
         <div className="text-body-s text-text-primary font-medium truncate">{result.location.name}</div>
-        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+        <div className="flex items-center gap-2 mt-0.5">
           <SensorChip type={result.sensorType} size="sm" />
           <span className="font-mono text-caption text-text-tertiary">
             {new Date(result.timestamp).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' })}
@@ -177,12 +179,18 @@ function ResultRow({ result, index, selected, onSelect }: {
             </span>
           )}
         </div>
-        <div className="flex items-center gap-1.5 mt-0.5">
-          <span className="font-mono text-overline text-text-tertiary">{result.resolution}</span>
-          {result.orbitNumber && (
-            <span className="font-mono text-overline" style={{ color: '#4A5568' }}>· ORB#{result.orbitNumber}</span>
-          )}
-        </div>
+        {result.matchExplanation ? (
+          <div className="text-overline mt-0.5 truncate" style={{ color: '#4A5568', fontStyle: 'italic' }}>
+            {result.matchExplanation.split('·')[0].trim()}
+          </div>
+        ) : (
+          <div className="flex items-center gap-1.5 mt-0.5">
+            <span className="font-mono text-overline text-text-tertiary">{result.resolution}</span>
+            {result.orbitNumber && (
+              <span className="font-mono text-overline" style={{ color: '#4A5568' }}>· ORB#{result.orbitNumber}</span>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="flex-shrink-0 text-right">
@@ -190,7 +198,11 @@ function ResultRow({ result, index, selected, onSelect }: {
           {result.similarityScore.toFixed(1)}%
         </div>
         <div className="mt-1.5 w-16 h-1 rounded-full" style={{ background: 'rgba(45,55,72,0.45)', overflow: 'hidden' }}>
-          <div className="h-full rounded-full" style={{ width: `${result.similarityScore}%`, background: simColor }} />
+          <motion.div className="h-full rounded-full"
+            initial={{ width: 0 }}
+            animate={{ width: `${result.similarityScore}%` }}
+            transition={{ delay: index * 0.035 + 0.15, duration: 0.5, ease: 'easeOut' }}
+            style={{ background: simColor }} />
         </div>
         <div className="font-mono text-overline mt-1" style={{ color: '#4A5568' }}>
           d={result.embeddingDistance.toFixed(3)}
@@ -512,7 +524,10 @@ function CompareTab({ result }: { result: RetrievalResult }) {
           <span className="font-mono text-caption font-bold text-teal-primary">d = {result.embeddingDistance.toFixed(3)}</span>
         </div>
         <div className="h-1.5 rounded-full" style={{ background: 'rgba(45,55,72,0.4)', overflow: 'hidden' }}>
-          <div className="h-full rounded-full" style={{ width: `${(1 - result.embeddingDistance) * 100}%`, background: '#14B8A6' }} />
+          <motion.div className="h-full rounded-full"
+            initial={{ width: 0 }} animate={{ width: `${(1 - result.embeddingDistance) * 100}%` }}
+            transition={{ duration: 0.7, ease: 'easeOut' }}
+            style={{ background: '#14B8A6' }} />
         </div>
         <div className="text-overline text-text-tertiary mt-1.5">
           512-dimensional cross-modal embedding space · FAISS HNSW index · cosine distance

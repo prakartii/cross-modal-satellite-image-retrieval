@@ -122,7 +122,7 @@ export default function ProcessingPipeline() {
   // Get the latest pipeline event for the current stage
   const latestEvent = pipelineEvents
     .filter((e) => e.stage === pipelineStage)
-    .at(-1)
+    .slice(-1)[0]
 
   return (
     <div className="px-8 py-7">

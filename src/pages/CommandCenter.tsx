@@ -92,17 +92,22 @@ function ProgressBar({ value, color }: { value: number; color: string }) {
 }
 
 export default function CommandCenter() {
-  const isLoaded       = useAppStore((s) => s.isLoaded)
-  const setEarthLoaded = useAppStore((s) => s.setEarthLoaded)
-  const setActiveView  = useAppStore((s) => s.setActiveView)
-  const toggleCopilot  = useAppStore((s) => s.toggleCopilot)
-  const toggleOrbits   = useAppStore((s) => s.toggleOrbits)
-  const toggleHotspots = useAppStore((s) => s.toggleHotspots)
-  const showOrbits     = useAppStore((s) => s.showOrbits)
-  const showHotspots   = useAppStore((s) => s.showHotspots)
-  const earthLayer     = useAppStore((s) => s.earthLayer)
-  const setEarthLayer  = useAppStore((s) => s.setEarthLayer)
+  const isLoaded        = useAppStore((s) => s.isLoaded)
+  const setEarthLoaded  = useAppStore((s) => s.setEarthLoaded)
+  const setActiveView   = useAppStore((s) => s.setActiveView)
+  const toggleCopilot   = useAppStore((s) => s.toggleCopilot)
+  const toggleOrbits    = useAppStore((s) => s.toggleOrbits)
+  const toggleHotspots  = useAppStore((s) => s.toggleHotspots)
+  const showOrbits      = useAppStore((s) => s.showOrbits)
+  const showHotspots    = useAppStore((s) => s.showHotspots)
+  const earthLayer      = useAppStore((s) => s.earthLayer)
+  const setEarthLayer   = useAppStore((s) => s.setEarthLayer)
+  const activeMission   = useAppStore((s) => s.activeMission)
+  const missionAnalytics= useAppStore((s) => s.missionAnalytics)
+  const backendAvailable= useAppStore((s) => s.backendAvailable)
   const [tick, setTick] = useState(0)
+
+  const hasMission = !!activeMission && !!missionAnalytics
 
   useEffect(() => { const t = setTimeout(() => setEarthLoaded(true), 5000); return () => clearTimeout(t) }, [setEarthLoaded])
   useEffect(() => { const t = setInterval(() => setTick(n => n + 1), 1000); return () => clearInterval(t) }, [])
@@ -150,6 +155,41 @@ export default function CommandCenter() {
             {/* ── LEFT PANEL ──────────────────────────────────── */}
             <motion.div {...fadeL} transition={{ ...fadeL.transition, delay: 0.2 }}
               className="absolute top-3 left-16 flex flex-col gap-2 z-10" style={{ width: 236 }}>
+
+              {/* Active Mission Card (only when mission is running) */}
+              {hasMission && (
+                <div className="glass-panel rounded-xl overflow-hidden" style={{ border: '1px solid rgba(59,130,246,0.25)' }}>
+                  <div className="px-4 py-2.5 flex items-center justify-between"
+                    style={{ borderBottom: '1px solid rgba(59,130,246,0.15)', background: 'rgba(59,130,246,0.06)' }}>
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-1.5 h-1.5 rounded-full bg-blue-primary animate-pulse flex-shrink-0" />
+                      <span className="overline-label" style={{ color: '#60A5FA' }}>Mission Active</span>
+                    </div>
+                    <button
+                      onClick={() => setActiveView('results')}
+                      className="text-overline font-semibold transition-opacity hover:opacity-80"
+                      style={{ color: '#3B82F6' }}
+                    >
+                      VIEW →
+                    </button>
+                  </div>
+                  <div className="px-4 pt-3 pb-3 space-y-2">
+                    <div className="text-caption text-text-primary font-medium leading-snug">
+                      {activeMission.name}
+                    </div>
+                    {[
+                      { label: 'Confidence', value: `${missionAnalytics.confidence.overall}%` },
+                      { label: 'Matches',    value: `${missionAnalytics.retrieval.total_results} scenes` },
+                      { label: 'Mode',       value: backendAvailable === false ? 'Demo' : 'Live AI' },
+                    ].map(({ label, value }) => (
+                      <div key={label} className="flex items-center justify-between">
+                        <span className="text-overline text-text-tertiary">{label}</span>
+                        <span className="font-mono text-overline text-text-secondary">{value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Archive Status */}
               <div className="glass-panel rounded-xl overflow-hidden">
@@ -226,12 +266,35 @@ export default function CommandCenter() {
                   <span className="overline-label">Mission Feed</span>
                   <div className="status-live" />
                 </div>
-                {MISSION_FEED.map((item, i) => (
+                {/* Active mission entry at the top when mission is running */}
+                {hasMission && (
+                  <div
+                    className="flex items-start gap-2 px-4 py-2.5 hover:bg-white-3 transition-colors cursor-pointer"
+                    style={{ borderBottom: '1px solid rgba(255,255,255,0.04)', background: 'rgba(59,130,246,0.04)' }}
+                    onClick={() => setActiveView('results')}
+                  >
+                    <div className="w-1.5 h-1.5 rounded-full mt-1 flex-shrink-0 animate-pulse"
+                      style={{ background: '#3B82F6', boxShadow: '0 0 5px #3B82F688' }} />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-caption font-medium leading-snug" style={{ color: '#60A5FA' }}>
+                        Intelligence retrieval complete · {missionAnalytics.retrieval.total_results} scenes
+                      </div>
+                      <div className="text-overline text-text-tertiary mt-0.5 truncate">
+                        {activeMission.name.slice(0, 34)}
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                      <span className="text-overline text-text-tertiary">now</span>
+                      <span className={STATUS_BADGE['ACTIVE']}>ACTIVE</span>
+                    </div>
+                  </div>
+                )}
+                {MISSION_FEED.slice(0, hasMission ? 5 : 7).map((item, i) => (
                   <div key={i}
                     className="flex items-start gap-2 px-4 py-2.5 hover:bg-white-3 transition-colors cursor-pointer"
                     style={i < MISSION_FEED.length - 1 ? { borderBottom: '1px solid rgba(255,255,255,0.04)' } : {}}>
                     <div className="w-1.5 h-1.5 rounded-full mt-1 flex-shrink-0"
-                      style={{ background: item.color, boxShadow: i === 0 ? `0 0 5px ${item.color}88` : 'none' }} />
+                      style={{ background: item.color }} />
                     <div className="flex-1 min-w-0">
                       <div className="text-caption text-text-secondary leading-snug">{item.text}</div>
                       <div className="text-overline text-text-tertiary mt-0.5 truncate">{item.sub}</div>
@@ -394,7 +457,13 @@ export default function CommandCenter() {
                   <span className="font-mono text-caption text-teal-primary">BHUVAN LINK</span>
                 </div>
                 <div className="w-px h-3" style={{ background: 'rgba(45,55,72,0.5)' }} />
-                <span className="font-mono text-caption text-text-tertiary">MSN-24062</span>
+                {hasMission ? (
+                  <span className="font-mono text-caption font-semibold" style={{ color: '#60A5FA' }}>
+                    {activeMission.id.slice(0, 14)} · MISSION ACTIVE
+                  </span>
+                ) : (
+                  <span className="font-mono text-caption text-text-tertiary">MSN-24062</span>
+                )}
                 <div className="w-px h-3" style={{ background: 'rgba(45,55,72,0.5)' }} />
                 <span className="font-mono text-caption uppercase tracking-wider" style={{ color: '#60A5FA' }}>{earthLayer} layer</span>
               </div>

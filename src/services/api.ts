@@ -33,6 +33,42 @@ export interface HealthResponse {
   archiveSize: number
 }
 
+/** Raw result shape returned by POST /api/search */
+export interface RawSearchResult {
+  id: string
+  rank: number
+  similarity_score: number
+  cosine_score: number
+  satellite: string
+  sensor_type: string
+  acquisition_date: string
+  resolution: string
+  cloud_cover: number
+  scene_type: string
+  processing_level: string
+  orbit_number: number
+  archive_source: string
+  thumbnail_url: string
+  description: string
+  match_explanation: string
+  location: { name: string; region: string; country: string; lat: number; lng: number }
+  feature_similarity: { water: number; vegetation: number; urban: number; texture: number; spectral: number }
+  archive_features: Record<string, number>
+}
+
+/** Full response from POST /api/search */
+export interface SearchResponse {
+  results: RawSearchResult[]
+  query_metadata: Record<string, unknown>
+  query_features: Record<string, number>
+  query_embedding: number[]
+  top_k: number
+  archive_size: number
+  pipeline_ms: number
+  scene_type_guess: string
+  confidence: number
+}
+
 class AkshaApiClient {
   private _available: boolean | null = null
   private _checkPromise: Promise<boolean> | null = null
@@ -162,6 +198,49 @@ class AkshaApiClient {
       const data: Record<string, unknown> = await res.json()
       return data['results'] as Record<string, unknown>[] ?? null
     } catch {
+      return null
+    }
+  }
+
+  /**
+   * Run the real retrieval pipeline for an uploaded image.
+   * Calls POST /api/search — single JSON response, no SSE streaming.
+   * Returns the full SearchResponse or null if backend unavailable.
+   *
+   * This is the primary endpoint for the Intelligence Search feature.
+   * Every similarity score in the response is computed from real cosine
+   * similarity between the query embedding and archive embeddings.
+   */
+  async searchImage(
+    file: File,
+    topK = 10,
+  ): Promise<SearchResponse | null> {
+    // Always re-check health — backend may have started since last attempt
+    this._available = null
+    const { available } = await this.checkHealth()
+    if (!available) return null
+
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('top_k', String(topK))
+
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/search`, {
+        method: 'POST',
+        body: formData,
+        signal: AbortSignal.timeout(30000), // 30 second timeout for pipeline
+      })
+
+      if (!response.ok) {
+        const text = await response.text()
+        console.error('[AKSHA API] /api/search failed:', response.status, text)
+        return null
+      }
+
+      return (await response.json()) as SearchResponse
+    } catch (err) {
+      console.error('[AKSHA API] /api/search error:', err)
+      this._available = false
       return null
     }
   }

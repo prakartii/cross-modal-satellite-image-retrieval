@@ -4,7 +4,7 @@ import {
   PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts'
-import { TrendingUp, TrendingDown, Activity, Clock, Target, Layers, AlertTriangle, Satellite, Zap, Globe } from 'lucide-react'
+import { TrendingUp, TrendingDown, Activity, Clock, Target, Layers, AlertTriangle, Satellite, Zap, Globe, Waves, Leaf } from 'lucide-react'
 import {
   analyticsMetrics, crossModalMatrix, queryVolumeData, sensorDistribution,
   acquisitionThroughput, activeRegions, disasterTimeline, latencyBreakdown,
@@ -60,40 +60,113 @@ const CORR: Record<string, number> = {
 
 export default function Analytics() {
   const missionAnalytics = useAppStore((s) => s.missionAnalytics)
+  const currentMission   = useAppStore((s) => s.currentMission)
+  const activeMission    = useAppStore((s) => s.activeMission)
+  const backendAvailable = useAppStore((s) => s.backendAvailable)
   const results          = useAppStore((s) => s.results)
 
-  // When a mission is active, derive similarity distribution from real results.
-  // Otherwise show the static demo distribution derived from mockResults.
+  const hasMission = !!missionAnalytics && !!currentMission
+
+  // Derive similarity distribution from mission results or fallback to mockResults
   const scoreSource = results.length > 0 ? results : mockResults
   const similarityDistribution = SIM_BINS.map((bin) => ({
     ...bin,
-    count: scoreSource.filter((r) => r.similarityScore * 100 >= bin.min && r.similarityScore * 100 < bin.max).length,
+    count: scoreSource.filter((r) => r.similarityScore >= bin.min && r.similarityScore < bin.max).length,
   }))
 
   const totalScenesToday = acquisitionThroughput[acquisitionThroughput.length - 1]
   const totalToday = totalScenesToday.sar + totalScenesToday.optical + totalScenesToday.multi
+
+  // Mission-derived KPI cards (shown instead of global KPIs when a mission is active)
+  const missionKpiCards = hasMission ? [
+    {
+      label: 'Mission Confidence',
+      value: `${missionAnalytics.confidence.overall}%`,
+      sub:   `${missionAnalytics.confidence.level} · ${currentMission.events[0]?.event_type ?? 'Flood'} signature confirmed`,
+      color: '#3B82F6',
+      up:    true,
+      Icon:  Target,
+    },
+    {
+      label: 'Water / Inundation',
+      value: `${missionAnalytics.coverage.water_pct}%`,
+      sub:   'Active inundation extent · Brahmaputra corridor',
+      color: '#60A5FA',
+      up:    true,
+      Icon:  Waves,
+    },
+    {
+      label: 'Vegetation Cover',
+      value: `${missionAnalytics.coverage.vegetation_pct}%`,
+      sub:   'NDVI-derived · flood-impacted reduction',
+      color: '#22C55E',
+      up:    false,
+      Icon:  Leaf,
+    },
+    {
+      label: 'Archive Matches',
+      value: `${missionAnalytics.retrieval.total_results}`,
+      sub:   `Top: ${missionAnalytics.retrieval.top_similarity.toFixed(1)}% · mean: ${missionAnalytics.retrieval.mean_similarity.toFixed(1)}%`,
+      color: '#14B8A6',
+      up:    true,
+      Icon:  Satellite,
+    },
+  ] : null
 
   return (
     <div className="h-full overflow-y-auto scrollbar-hide">
       {/* Header */}
       <div className="px-8 py-5 flex items-end justify-between" style={{ borderBottom: '1px solid rgba(45,55,72,0.25)' }}>
         <div>
-          <div className="overline-label mb-1.5">ISRO AKSHA · Mission Control Analytics</div>
-          <h1 className="text-heading-1 text-text-primary font-semibold">Mission Dashboard</h1>
-          <p className="text-body-s text-text-tertiary mt-0.5">
-            DOY 175 · 2024 · Reporting period: 7 days · 06 platforms active
-          </p>
+          <div className="overline-label mb-1.5">
+            ISRO AKSHA · {hasMission ? 'Active Mission Analytics' : 'Mission Control Analytics'}
+          </div>
+          <h1 className="text-heading-1 text-text-primary font-semibold">
+            {hasMission ? 'Mission Intelligence Report' : 'Mission Dashboard'}
+          </h1>
+          {hasMission ? (
+            <p className="text-body-s text-text-tertiary mt-0.5">
+              {activeMission?.name ?? 'Active Mission'} · {String(missionAnalytics.scene_info.region ?? '')} · {String(missionAnalytics.scene_info.sensor ?? '')}
+            </p>
+          ) : (
+            <p className="text-body-s text-text-tertiary mt-0.5">
+              DOY 175 · 2024 · Reporting period: 7 days · 06 platforms active
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-4 pb-1">
-          <div className="text-right">
-            <div className="font-mono text-heading-2 font-bold text-text-primary">{totalToday}</div>
-            <div className="text-overline text-text-tertiary">scenes today</div>
-          </div>
-          <div className="w-px h-8 mx-1" style={{ background: 'rgba(45,55,72,0.35)' }} />
-          <div className="flex items-center gap-2">
-            <div className="status-live" />
-            <span className="text-caption text-text-tertiary">Live · UTC 14:27:09</span>
-          </div>
+          {hasMission ? (
+            <>
+              <div className="text-right">
+                <div className="font-mono text-heading-2 font-bold text-text-primary">{missionAnalytics.retrieval.total_results}</div>
+                <div className="text-overline text-text-tertiary">archive matches</div>
+              </div>
+              <div className="w-px h-8 mx-1" style={{ background: 'rgba(45,55,72,0.35)' }} />
+              <div className="text-right">
+                <div className="font-mono text-heading-2 font-bold" style={{ color: '#3B82F6' }}>{missionAnalytics.confidence.overall}%</div>
+                <div className="text-overline text-text-tertiary">mission confidence</div>
+              </div>
+              <div className="w-px h-8 mx-1" style={{ background: 'rgba(45,55,72,0.35)' }} />
+              <div className="flex items-center gap-2">
+                <div className={backendAvailable === false ? 'w-1.5 h-1.5 rounded-full bg-warning flex-shrink-0' : 'status-live'} />
+                <span className="text-caption text-text-tertiary">
+                  {backendAvailable === false ? 'Demo Mode' : 'Live AI Backend'}
+                </span>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="text-right">
+                <div className="font-mono text-heading-2 font-bold text-text-primary">{totalToday}</div>
+                <div className="text-overline text-text-tertiary">scenes today</div>
+              </div>
+              <div className="w-px h-8 mx-1" style={{ background: 'rgba(45,55,72,0.35)' }} />
+              <div className="flex items-center gap-2">
+                <div className="status-live" />
+                <span className="text-caption text-text-tertiary">Live · UTC 14:27:09</span>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -101,15 +174,21 @@ export default function Analytics() {
 
         {/* ── Mission KPI Hero Row ─────────────────────────────────────────── */}
         <div>
-          <div className="overline-label mb-3">Mission KPIs · Last 24 hours</div>
+          <div className="overline-label mb-3">
+            {hasMission ? 'Mission KPIs · Active Intelligence Run' : 'Mission KPIs · Last 24 hours'}
+          </div>
           <div className="grid grid-cols-4 gap-4">
-            {missionKPIs.map((kpi, i) => {
+            {(missionKpiCards ?? missionKPIs.map((kpi, i) => {
               const icons = [Globe, AlertTriangle, Zap, Satellite]
-              const Icon = icons[i]
+              return { ...kpi, Icon: icons[i] }
+            })).map((kpi, i) => {
+              const Icon = (kpi as { Icon: typeof Globe }).Icon
               return (
                 <motion.div key={kpi.label}
-                  initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }}
-                  className="px-5 py-4 rounded-xl relative overflow-hidden"
+                  initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+                  whileHover={{ y: -2, boxShadow: `0 8px 24px ${kpi.color}18` }}
+                  transition={{ delay: i * 0.06, duration: 0.2 }}
+                  className="px-5 py-4 rounded-xl relative overflow-hidden cursor-default"
                   style={{ background: `${kpi.color}08`, border: `1px solid ${kpi.color}22` }}>
                   <div className="absolute top-0 right-0 w-16 h-16 rounded-full blur-2xl pointer-events-none"
                     style={{ background: kpi.color, opacity: 0.06, transform: 'translate(25%, -25%)' }} />
@@ -133,6 +212,79 @@ export default function Analytics() {
             })}
           </div>
         </div>
+
+        {/* ── Mission Land Cover (only when mission is active) ──────────────── */}
+        {hasMission && (
+          <div className="grid grid-cols-2 gap-5">
+            <Panel label="Mission Land Cover Composition" sub="Scene analysis from uploaded image · derived from feature extraction">
+              <div className="space-y-4 mt-1">
+                {[
+                  { label: 'Water / Inundated', pct: missionAnalytics.coverage.water_pct, color: '#3B82F6' },
+                  { label: 'Vegetation',        pct: missionAnalytics.coverage.vegetation_pct, color: '#22C55E' },
+                  { label: 'Urban / Built-up',  pct: missionAnalytics.coverage.urban_pct, color: '#F59E0B' },
+                  { label: 'Bare Soil / Other', pct: missionAnalytics.coverage.bare_soil_pct, color: '#94A3B8' },
+                  { label: 'Cloud Cover',       pct: missionAnalytics.coverage.cloud_pct, color: '#475569' },
+                ].map((row, i) => (
+                  <div key={row.label}>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-body-s text-text-secondary">{row.label}</span>
+                      <span className="font-mono text-body-s font-semibold" style={{ color: row.color }}>{row.pct.toFixed(0)}%</span>
+                    </div>
+                    <div className="w-full rounded-full overflow-hidden" style={{ height: 5, background: 'rgba(45,55,72,0.35)' }}>
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${row.pct}%` }}
+                        transition={{ duration: 0.7, delay: i * 0.1, ease: 'easeOut' }}
+                        style={{ height: '100%', background: row.color, borderRadius: 4, opacity: 0.85 }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Panel>
+
+            <Panel label="Mission Processing Breakdown" sub="Pipeline stage durations · AKSHA v3.0 intelligence run">
+              <div className="space-y-4 mt-1">
+                {Object.entries(missionAnalytics.processing.stage_breakdown).map(([stage, ms], i) => {
+                  const maxMs = Math.max(...Object.values(missionAnalytics.processing.stage_breakdown))
+                  const colors = ['#3B82F6', '#14B8A6', '#22C55E', '#8B5CF6', '#F59E0B', '#3B82F6', '#EF4444', '#14B8A6', '#22C55E']
+                  const color = colors[i % colors.length]
+                  const label = stage.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+                  return (
+                    <div key={stage}>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-caption text-text-secondary">{label}</span>
+                        <span className="font-mono text-caption" style={{ color }}>{ms}ms</span>
+                      </div>
+                      <div className="w-full rounded-full overflow-hidden" style={{ height: 4, background: 'rgba(45,55,72,0.35)' }}>
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: `${(ms / maxMs) * 100}%` }}
+                          transition={{ duration: 0.6, delay: i * 0.07, ease: 'easeOut' }}
+                          style={{ height: '100%', background: color, borderRadius: 4, opacity: 0.82 }}
+                        />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+              <div className="flex items-center justify-between mt-4 pt-3" style={{ borderTop: '1px solid rgba(45,55,72,0.2)' }}>
+                <div>
+                  <div className="font-mono text-heading-3 font-bold text-text-primary">{missionAnalytics.processing.total_seconds.toFixed(1)}s</div>
+                  <div className="text-overline text-text-tertiary mt-0.5">Total pipeline</div>
+                </div>
+                <div className="text-right">
+                  <div className="font-mono text-heading-3 font-bold" style={{ color: '#F59E0B' }}>{missionAnalytics.processing.slowest_stage.replace(/_/g, ' ')}</div>
+                  <div className="text-overline text-text-tertiary mt-0.5">Slowest stage</div>
+                </div>
+                <div className="text-right">
+                  <div className="font-mono text-heading-3 font-bold" style={{ color: '#22C55E' }}>{missionAnalytics.processing.embedding_dim}D</div>
+                  <div className="text-overline text-text-tertiary mt-0.5">Embedding</div>
+                </div>
+              </div>
+            </Panel>
+          </div>
+        )}
 
         {/* ── Acquisition Throughput + Disaster Timeline ───────────────────── */}
         <div className="grid grid-cols-5 gap-5">
