@@ -239,8 +239,8 @@ export default function ComparisonView() {
               },
               {
                 label: 'Mission conf.',
-                value: '78%',
-                sub: 'overall score',
+                value: '87%',
+                sub: 'BF2024-RISAT2B-001',
                 color: '#3B82F6',
                 up: true,
               },

@@ -669,6 +669,41 @@ export default function SatelliteTracker() {
           </div>
         </div>
 
+        {/* Mission Workflow Stages (shown when mission active) */}
+        {hasMission && (
+          <div className="px-5 py-4" style={{ borderBottom: '1px solid rgba(45,55,72,0.25)' }}>
+            <div className="overline-label mb-3" style={{ color: '#3B82F6' }}>Mission Workflow · RISAT-2B</div>
+            <div className="space-y-1.5">
+              {[
+                { label: 'Tasked',           desc: 'Flood monitoring request issued',   complete: true  },
+                { label: 'Acquired',          desc: 'SAR scene captured 26.12°N 91.74°E', complete: true  },
+                { label: 'Encoded',           desc: 'SatMAE-v1 · 32-dim embedding',      complete: true  },
+                { label: 'Retrieved',         desc: `${currentMission?.retrieval_results?.length ?? 10} archive matches`,   complete: true  },
+                { label: 'Report Generated',  desc: 'Intelligence report delivered',      complete: true  },
+              ].map(({ label, desc, complete }, i, arr) => (
+                <div key={label} className="flex items-start gap-2.5">
+                  <div className="flex flex-col items-center flex-shrink-0">
+                    <div className="w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0"
+                      style={{
+                        background: complete ? 'rgba(20,184,166,0.18)' : 'rgba(45,55,72,0.3)',
+                        border: `1px solid ${complete ? 'rgba(20,184,166,0.45)' : 'rgba(45,55,72,0.4)'}`,
+                      }}>
+                      {complete && <FileCheck className="w-2 h-2" style={{ color: '#14B8A6' }} />}
+                    </div>
+                    {i < arr.length - 1 && (
+                      <div className="w-px flex-1 mt-0.5" style={{ height: 14, background: complete ? 'rgba(20,184,166,0.25)' : 'rgba(45,55,72,0.3)' }} />
+                    )}
+                  </div>
+                  <div className="pb-1.5">
+                    <div className="text-caption font-medium" style={{ color: complete ? '#14B8A6' : '#64748B' }}>{label}</div>
+                    <div className="text-overline text-text-tertiary leading-tight">{desc}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Mission Archive Contribution (shown when mission active) */}
         {hasMission && PROVENANCE[selected.id] && (
           <div className="px-5 py-4" style={{ borderBottom: '1px solid rgba(45,55,72,0.25)' }}>

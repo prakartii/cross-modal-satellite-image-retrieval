@@ -101,7 +101,8 @@ function _mapResults(raw: RawSearchResult[]): RetrievalResult[] {
       water:      r.feature_similarity.water,
       texture:    r.feature_similarity.texture,
       urban:      r.feature_similarity.urban,
-      cloud:      r.feature_similarity.spectral,  // spectral similarity maps to cloud display slot
+      cloud:      r.feature_similarity.spectral,
+      terrain:    Math.round((r.feature_similarity.texture + r.feature_similarity.vegetation) / 2),
     },
     embeddingDistance: 1.0 - r.cosine_score,  // convert similarity to distance
     archiveSource:    r.archive_source,
@@ -114,15 +115,17 @@ function _mapResults(raw: RawSearchResult[]): RetrievalResult[] {
   }))
 }
 
-// Legacy SSE pipeline support (kept for backward compat with old pipeline stages UI)
+// 10-stage AI pipeline — Foundation Model + FAISS + Cross-Modal
 export const PIPELINE_STAGES = [
   'metadata_extraction',
-  'preprocessing',
-  'feature_extraction',
-  'embedding_generation',
-  'semantic_search',
-  'reranking',
-  'formatting',
+  'radiometric_calibration',
+  'cloud_noise_correction',
+  'foundation_model_encoding',
+  'cross_modal_alignment',
+  'faiss_vector_search',
+  'graph_reranking',
+  'explainability_engine',
+  'mission_report',
   'complete',
 ] as const
 

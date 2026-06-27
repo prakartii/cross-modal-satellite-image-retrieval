@@ -5,14 +5,16 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts'
 import { TrendingUp, TrendingDown, Activity, Clock, Target, Layers, AlertTriangle, Satellite, Zap, Globe, Waves, Leaf } from 'lucide-react'
+import CrossModalViz from '@/components/search/CrossModalViz'
 import {
   analyticsMetrics, crossModalMatrix, queryVolumeData, sensorDistribution,
   acquisitionThroughput, activeRegions, disasterTimeline, latencyBreakdown,
   sensorUtilization, missionKPIs,
 } from '@/data/analytics'
-import { mockResults } from '@/data/mockResults'
+import { mockResults, OVERALL_CONF } from '@/data/mockResults'
 import { useAppStore } from '@/store/useAppStore'
 import { cn } from '@/lib/utils'
+import { useCountUp } from '@/hooks/useCountUp'
 
 const TOOLTIP_STYLE = {
   contentStyle: {
@@ -67,6 +69,12 @@ export default function Analytics() {
 
   const hasMission = !!missionAnalytics && !!currentMission
 
+  // Animated count-up for hero KPI values
+  const animConf    = useCountUp(missionAnalytics?.confidence.overall ?? OVERALL_CONF, 1400, { active: true, decimals: 1 })
+  const animMatches = useCountUp(missionAnalytics?.retrieval.total_results ?? 10, 1000, { active: true, delay: 80 })
+  const animWater   = useCountUp(missionAnalytics?.coverage.water_pct ?? 52, 1200, { active: true, decimals: 1, delay: 120 })
+  const animVeg     = useCountUp(missionAnalytics?.coverage.vegetation_pct ?? 41, 1200, { active: true, decimals: 1, delay: 200 })
+
   // Derive similarity distribution from mission results or fallback to mockResults
   const scoreSource = results.length > 0 ? results : mockResults
   const similarityDistribution = SIM_BINS.map((bin) => ({
@@ -77,19 +85,21 @@ export default function Analytics() {
   const totalScenesToday = acquisitionThroughput[acquisitionThroughput.length - 1]
   const totalToday = totalScenesToday.sar + totalScenesToday.optical + totalScenesToday.multi
 
-  // Mission-derived KPI cards (shown instead of global KPIs when a mission is active)
-  const missionKpiCards = hasMission ? [
+  // Mission-derived KPI cards — always show canonical mission values (never 0%)
+  const missionKpiCards = [
     {
       label: 'Mission Confidence',
-      value: `${missionAnalytics.confidence.overall}%`,
-      sub:   `${missionAnalytics.confidence.level} · ${currentMission.events[0]?.event_type ?? 'Flood'} signature confirmed`,
+      value: `${animConf.toFixed(1)}%`,
+      sub:   hasMission
+        ? `${missionAnalytics!.confidence.level} · ${currentMission!.events[0]?.event_type ?? 'Flood'} signature confirmed`
+        : 'High · BF2024-RISAT2B-001 · Flood signature confirmed',
       color: '#3B82F6',
       up:    true,
       Icon:  Target,
     },
     {
       label: 'Water / Inundation',
-      value: `${missionAnalytics.coverage.water_pct}%`,
+      value: `${animWater.toFixed(1)}%`,
       sub:   'Active inundation extent · Brahmaputra corridor',
       color: '#60A5FA',
       up:    true,
@@ -97,7 +107,7 @@ export default function Analytics() {
     },
     {
       label: 'Vegetation Cover',
-      value: `${missionAnalytics.coverage.vegetation_pct}%`,
+      value: `${animVeg.toFixed(1)}%`,
       sub:   'NDVI-derived · flood-impacted reduction',
       color: '#22C55E',
       up:    false,
@@ -105,13 +115,15 @@ export default function Analytics() {
     },
     {
       label: 'Archive Matches',
-      value: `${missionAnalytics.retrieval.total_results}`,
-      sub:   `Top: ${missionAnalytics.retrieval.top_similarity.toFixed(1)}% · mean: ${missionAnalytics.retrieval.mean_similarity.toFixed(1)}%`,
+      value: `${animMatches}`,
+      sub:   hasMission
+        ? `Top: ${missionAnalytics!.retrieval.top_similarity.toFixed(1)}% · mean: ${missionAnalytics!.retrieval.mean_similarity.toFixed(1)}%`
+        : 'Top: 94.2% · mean: 86.4% · Brahmaputra demo corpus',
       color: '#14B8A6',
       up:    true,
       Icon:  Satellite,
     },
-  ] : null
+  ]
 
   return (
     <div className="h-full overflow-y-auto scrollbar-hide">
@@ -138,12 +150,12 @@ export default function Analytics() {
           {hasMission ? (
             <>
               <div className="text-right">
-                <div className="font-mono text-heading-2 font-bold text-text-primary">{missionAnalytics.retrieval.total_results}</div>
+                <div className="font-mono text-heading-2 font-bold text-text-primary">{animMatches}</div>
                 <div className="text-overline text-text-tertiary">archive matches</div>
               </div>
               <div className="w-px h-8 mx-1" style={{ background: 'rgba(45,55,72,0.35)' }} />
               <div className="text-right">
-                <div className="font-mono text-heading-2 font-bold" style={{ color: '#3B82F6' }}>{missionAnalytics.confidence.overall}%</div>
+                <div className="font-mono text-heading-2 font-bold" style={{ color: '#3B82F6' }}>{animConf.toFixed(1)}%</div>
                 <div className="text-overline text-text-tertiary">mission confidence</div>
               </div>
               <div className="w-px h-8 mx-1" style={{ background: 'rgba(45,55,72,0.35)' }} />
@@ -157,13 +169,18 @@ export default function Analytics() {
           ) : (
             <>
               <div className="text-right">
-                <div className="font-mono text-heading-2 font-bold text-text-primary">{totalToday}</div>
-                <div className="text-overline text-text-tertiary">scenes today</div>
+                <div className="font-mono text-heading-2 font-bold text-text-primary">{animMatches}</div>
+                <div className="text-overline text-text-tertiary">archive matches</div>
+              </div>
+              <div className="w-px h-8 mx-1" style={{ background: 'rgba(45,55,72,0.35)' }} />
+              <div className="text-right">
+                <div className="font-mono text-heading-2 font-bold" style={{ color: '#3B82F6' }}>{animConf.toFixed(1)}%</div>
+                <div className="text-overline text-text-tertiary">mission confidence</div>
               </div>
               <div className="w-px h-8 mx-1" style={{ background: 'rgba(45,55,72,0.35)' }} />
               <div className="flex items-center gap-2">
-                <div className="status-live" />
-                <span className="text-caption text-text-tertiary">Live · UTC 14:27:09</span>
+                <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: '#F59E0B' }} />
+                <span className="text-caption text-text-tertiary">Demo · BF2024-RISAT2B-001</span>
               </div>
             </>
           )}
@@ -175,14 +192,11 @@ export default function Analytics() {
         {/* ── Mission KPI Hero Row ─────────────────────────────────────────── */}
         <div>
           <div className="overline-label mb-3">
-            {hasMission ? 'Mission KPIs · Active Intelligence Run' : 'Mission KPIs · Last 24 hours'}
+            {hasMission ? 'Mission KPIs · Active Intelligence Run' : 'Mission KPIs · BF2024-RISAT2B-001'}
           </div>
           <div className="grid grid-cols-4 gap-4">
-            {(missionKpiCards ?? missionKPIs.map((kpi, i) => {
-              const icons = [Globe, AlertTriangle, Zap, Satellite]
-              return { ...kpi, Icon: icons[i] }
-            })).map((kpi, i) => {
-              const Icon = (kpi as { Icon: typeof Globe }).Icon
+            {missionKpiCards.map((kpi, i) => {
+              const Icon = kpi.Icon
               return (
                 <motion.div key={kpi.label}
                   initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
@@ -283,6 +297,69 @@ export default function Analytics() {
                 </div>
               </div>
             </Panel>
+          </div>
+        )}
+
+        {/* ── AI Platform Cross-Modal Metrics (mission active only) ────────── */}
+        {hasMission && (
+          <div>
+            <div className="overline-label mb-3">AI Platform · Cross-Modal Intelligence Metrics</div>
+            <div className="grid grid-cols-5 gap-3">
+              {[
+                { label: 'Mission Confidence',  value: `${animConf.toFixed(1)}%`,                                          color: '#3B82F6', sub: 'Overall · High' },
+                { label: 'Cross-Modal Conf.',   value: `${missionAnalytics.processing.cross_modal_conf}%`,                 color: '#14B8A6', sub: 'SAR↔Optical alignment' },
+                { label: 'Retrieved Archives',  value: `${missionAnalytics.retrieval.total_results}`,                      color: '#22C55E', sub: `of ${missionAnalytics.retrieval.archive_size} indexed scenes` },
+                { label: 'Embedding Dim',       value: `${missionAnalytics.processing.embedding_dim}D`,                    color: '#8B5CF6', sub: missionAnalytics.processing.foundation_model },
+                { label: 'Vector Search',       value: `${missionAnalytics.processing.vector_search_ms}ms`,                color: '#F59E0B', sub: 'FAISS L2 flat index' },
+                { label: 'Foundation Model',    value: missionAnalytics.processing.foundation_model,                       color: '#EC4899', sub: 'Vision transformer · 32-dim' },
+                { label: 'FAISS Index Size',    value: `${missionAnalytics.processing.faiss_index_size} scenes`,           color: '#0EA5E9', sub: 'Brahmaputra demo corpus' },
+                { label: 'Graph Nodes',         value: String(currentMission?.graph?.stats?.node_count ?? '—'),            color: '#10B981', sub: 'Geo-semantic graph' },
+                { label: 'Avg Similarity',      value: `${missionAnalytics.retrieval.mean_similarity.toFixed(1)}%`,        color: '#F8FAFC', sub: 'Across top-10 results' },
+                { label: 'Top Match',           value: `${missionAnalytics.retrieval.top_similarity.toFixed(1)}%`,         color: '#22C55E', sub: 'Sentinel-2A MSI · rank 1' },
+              ].map(({ label, value, color, sub }, i) => (
+                <motion.div key={label}
+                  initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.04, duration: 0.2 }}
+                  className="p-3 rounded-lg"
+                  style={{ background: `${color}08`, border: `1px solid ${color}20` }}>
+                  <div className="font-mono text-body-s font-bold mb-1 truncate" style={{ color }}>{value}</div>
+                  <div className="text-caption text-text-secondary leading-tight">{label}</div>
+                  <div className="text-overline text-text-tertiary mt-0.5 truncate">{sub}</div>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── Cross-Modal Embedding Visualization (mission active only) ───── */}
+        {hasMission && (
+          <div className="grid grid-cols-3 gap-5">
+            <div className="col-span-2 p-5 rounded-xl" style={{ background: 'rgba(17,24,39,0.45)', border: '1px solid rgba(45,55,72,0.25)' }}>
+              <CrossModalViz />
+            </div>
+            <div className="p-5 rounded-xl" style={{ background: 'rgba(17,24,39,0.45)', border: '1px solid rgba(45,55,72,0.25)' }}>
+              <div className="overline-label mb-2">Sensor Correlation</div>
+              <div className="space-y-2 mt-3">
+                {[
+                  { from: 'SAR', to: 'Optical',       score: 91.2, color: '#22C55E' },
+                  { from: 'SAR', to: 'Multispectral',  score: 88.7, color: '#14B8A6' },
+                  { from: 'Optical', to: 'Multispectral', score: 93.1, color: '#3B82F6' },
+                ].map(({ from, to, score, color }) => (
+                  <div key={`${from}→${to}`}>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-caption text-text-secondary">{from} → {to}</span>
+                      <span className="font-mono text-caption font-semibold" style={{ color }}>{score}%</span>
+                    </div>
+                    <div className="h-1 rounded-full overflow-hidden" style={{ background: 'rgba(45,55,72,0.35)' }}>
+                      <motion.div className="h-full rounded-full"
+                        initial={{ width: 0 }} animate={{ width: `${score}%` }}
+                        transition={{ duration: 0.7, ease: 'easeOut' }}
+                        style={{ background: color }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         )}
 

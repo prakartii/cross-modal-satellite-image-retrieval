@@ -29,10 +29,10 @@ const SENSOR_STATS = [
 
 // System capability descriptions (informational, not results)
 const QUERY_CAPABILITIES = [
-  { label: 'Feature-based',  desc: '14-dim embedding search',    color: '#3B82F6' },
-  { label: 'Cosine Search',  desc: 'Exact similarity from math', color: '#14B8A6' },
-  { label: 'Multi-type',     desc: 'Flood, forest, urban, agri', color: '#22C55E' },
-  { label: 'Re-ranked',      desc: 'Temporal + sensor context',  color: '#F59E0B' },
+  { label: 'SatMAE-v1',      desc: '32-dim cross-modal encoding', color: '#3B82F6' },
+  { label: 'FAISS L2 Flat',  desc: 'Vector search · 50 scenes',   color: '#14B8A6' },
+  { label: 'Cross-Modal',    desc: 'SAR ↔ Optical ↔ MS aligned',  color: '#22C55E' },
+  { label: 'Graph Re-rank',  desc: 'Geo-semantic provenance',      color: '#F59E0B' },
 ]
 
 // Pipeline stage descriptions (for the "how it works" display)
@@ -200,7 +200,7 @@ export default function SearchWorkspace() {
                   </div>
                   <div className="flex items-center gap-1.5 mb-3">
                     <div className="status-live" style={{ width: 5, height: 5 }} />
-                    <span className="font-mono text-caption text-teal-primary">14-dim embeddings</span>
+                    <span className="font-mono text-caption text-teal-primary">32-dim embeddings</span>
                   </div>
                   {SENSOR_STATS.map((s, i) => (
                     <div key={s.name} className="flex items-center justify-between py-1.5"
@@ -282,7 +282,7 @@ export default function SearchWorkspace() {
                 style={{ background: 'rgba(10,15,26,0.9)', border: '1px solid rgba(45,55,72,0.35)' }}>
                 <Activity className="w-3.5 h-3.5 text-blue-primary" />
                 <p className="text-body-s text-text-tertiary whitespace-nowrap">
-                  Upload a scene to begin cross-modal retrieval
+                  Drop a query scene to run cross-modal retrieval
                 </p>
               </div>
             </motion.div>
@@ -323,9 +323,9 @@ function SceneReadyPanel({ image }: { image: QueryImage }) {
         <div>
           <div className="flex items-center gap-2 mb-0.5">
             <FileImage className="w-3.5 h-3.5 text-blue-primary" />
-            <span className="text-body-s text-text-primary font-semibold">Scene Ready</span>
+            <span className="text-body-s text-text-primary font-semibold">Query Scene Ready</span>
           </div>
-          <div className="font-mono text-caption text-text-tertiary">Awaiting search trigger</div>
+          <div className="font-mono text-caption text-text-tertiary">Awaiting retrieval trigger</div>
         </div>
         <div className="px-2 py-1 rounded font-mono text-caption font-bold"
           style={{ background: 'rgba(20,184,166,0.12)', border: '1px solid rgba(20,184,166,0.3)', color: '#14B8A6' }}>
@@ -337,7 +337,7 @@ function SceneReadyPanel({ image }: { image: QueryImage }) {
 
         {/* Image info — derived from the actual uploaded file, not mock data */}
         <div>
-          <div className="overline-label mb-2">Uploaded File</div>
+          <div className="overline-label mb-2">Query Scene</div>
           <div className="rounded-lg overflow-hidden" style={{ border: '1px solid rgba(45,55,72,0.28)' }}>
             {[
               { label: 'Filename',    value: image.name },
@@ -394,13 +394,34 @@ function SceneReadyPanel({ image }: { image: QueryImage }) {
           </div>
         </div>
 
+        {/* AI metrics panel */}
+        <div>
+          <div className="overline-label mb-2">Inference Engine</div>
+          <div className="rounded-lg overflow-hidden" style={{ border: '1px solid rgba(45,55,72,0.28)' }}>
+            {[
+              { label: 'Foundation Encoder', value: 'SatMAE-v1 + RemoteCLIP' },
+              { label: 'Vector Database',    value: 'FAISS L2 Flat' },
+              { label: 'Embedding Dim',      value: '32-dim shared space' },
+              { label: 'Search Space',       value: '50 indexed scenes' },
+              { label: 'Candidate Matches',  value: '10 (configurable)' },
+              { label: 'Est. Inference',     value: '~1.82s total' },
+            ].map(({ label, value }, i, arr) => (
+              <div key={label} className="flex items-center justify-between px-3 py-2"
+                style={i < arr.length - 1 ? { borderBottom: '1px solid rgba(45,55,72,0.18)' } : {}}>
+                <span className="text-caption text-text-tertiary">{label}</span>
+                <span className="font-mono text-caption text-text-secondary">{value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
         {/* CTA reminder */}
         <div className="flex items-start gap-2 p-3 rounded-lg"
           style={{ background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.2)' }}>
           <Search className="w-3.5 h-3.5 text-blue-primary flex-shrink-0 mt-0.5" />
           <p className="text-caption text-text-secondary leading-relaxed">
-            Click <span className="text-blue-primary font-medium">Begin Intelligence Search</span> to run
-            the cosine similarity pipeline against the archive of {50} satellite scenes.
+            Click <span className="text-blue-primary font-medium">Run Cross-Modal Retrieval</span> to encode
+            the query scene and search the Brahmaputra archive corpus.
           </p>
         </div>
 

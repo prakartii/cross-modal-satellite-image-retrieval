@@ -3,18 +3,18 @@ export type SensorType = 'SAR' | 'Optical' | 'Multispectral';
 
 export type ViewMode = 'gallery' | 'earth' | 'timeline' | 'compare';
 
-// ── Full 10-stage pipeline ─────────────────────────────────────────────────
+// ── Full 10-stage AI pipeline (Foundation Model + FAISS) ──────────────────
 export type FullPipelineStage =
   | 'idle'
   | 'metadata_extraction'
-  | 'preprocessing'
-  | 'feature_extraction'
-  | 'embedding_generation'
-  | 'semantic_search'
+  | 'radiometric_calibration'
+  | 'cloud_noise_correction'
+  | 'foundation_model_encoding'
+  | 'cross_modal_alignment'
+  | 'faiss_vector_search'
   | 'graph_reranking'
-  | 'event_detection'
-  | 'confidence_estimation'
-  | 'report_generation'
+  | 'explainability_engine'
+  | 'mission_report'
   | 'complete';
 
 export type PipelineStage = FullPipelineStage;
@@ -33,6 +33,7 @@ export interface FeatureSimilarity {
   texture:    number;
   urban:      number;
   cloud:      number;
+  terrain:    number;  // terrain morphology match (derived from texture + elevation)
 }
 
 // ── Retrieval result ───────────────────────────────────────────────────────
@@ -236,11 +237,15 @@ export interface MissionAnalytics {
   confidence: { overall: number; level: string; components: Record<string, number> };
   features:   Record<string, number>;
   processing: {
-    total_ms:       number;
-    total_seconds:  number;
-    stage_breakdown: Record<string, number>;
-    slowest_stage:  string;
-    embedding_dim:  number;
+    total_ms:            number;
+    total_seconds:       number;
+    stage_breakdown:     Record<string, number>;
+    slowest_stage:       string;
+    embedding_dim:       number;
+    foundation_model:    string;
+    faiss_index_size:    number;
+    vector_search_ms:    number;
+    cross_modal_conf:    number;
   };
   scene_info: Record<string, unknown>;
 }

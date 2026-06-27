@@ -327,6 +327,57 @@ function ResultArcs({ results }: { results: RetrievalResult[] }) {
   )
 }
 
+// ─── AOI pulse rings (Brahmaputra flood alert) ──────────────────────────────
+function AoiPulse() {
+  const activeMission = useAppStore((s) => s.activeMission)
+  const rings = useRef<THREE.Mesh[]>([])
+  const phases = useRef([0, 0.33, 0.66])
+
+  // Brahmaputra basin: 26.12°N, 91.74°E
+  const [cx, cy, cz] = latLngToVector3(26.12, 91.74, EARTH_RADIUS + 0.005)
+  const center = useMemo(() => new THREE.Vector3(cx, cy, cz), [cx, cy, cz])
+
+  // Normal vector pointing outward from earth surface at this location
+  const normal = useMemo(() => center.clone().normalize(), [center])
+
+  useFrame(({ clock }) => {
+    if (!activeMission) return
+    const t = clock.getElapsedTime()
+    rings.current.forEach((mesh, i) => {
+      if (!mesh) return
+      const phase = ((t * 0.55 + phases.current[i]) % 1)
+      const scale = 0.02 + phase * 0.22
+      mesh.scale.setScalar(scale)
+      const mat = mesh.material as THREE.MeshBasicMaterial
+      mat.opacity = (1 - phase) * 0.65
+    })
+  })
+
+  if (!activeMission) return null
+
+  // Place ring geometry tangent to earth surface, oriented by the normal
+  const quaternion = useMemo(() => {
+    const up = new THREE.Vector3(0, 1, 0)
+    return new THREE.Quaternion().setFromUnitVectors(up, normal)
+  }, [normal])
+
+  return (
+    <group position={center} quaternion={quaternion}>
+      {[0, 1, 2].map((i) => (
+        <mesh key={i} ref={(el) => { if (el) rings.current[i] = el }}>
+          <ringGeometry args={[0.9, 1.0, 48]} />
+          <meshBasicMaterial color="#3B82F6" transparent opacity={0} side={THREE.DoubleSide} />
+        </mesh>
+      ))}
+      {/* Static center dot */}
+      <mesh>
+        <circleGeometry args={[0.018, 24]} />
+        <meshBasicMaterial color="#60A5FA" transparent opacity={0.9} side={THREE.DoubleSide} />
+      </mesh>
+    </group>
+  )
+}
+
 // ─── Camera controller ──────────────────────────────────────────────────────
 function CameraController() {
   const { camera } = useThree()
@@ -392,6 +443,7 @@ function EarthScene() {
           color={o.color} period={o.period} name={o.name} />
       ))}
       <Hotspots />
+      <AoiPulse />
       <ResultArcs results={results} />
       <CameraController />
     </>

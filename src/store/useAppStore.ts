@@ -7,7 +7,12 @@ import type {
 } from '@/types'
 import { runRetrieval, PIPELINE_STAGES } from '@/services/pipeline'
 import type { SearchResponse } from '@/services/api'
-import { mockResults } from '@/data/mockResults'
+import {
+  mockResults,
+  MISSION_ID, MISSION_AOI, MISSION_SAT, OVERALL_CONF,
+  FOUNDATION_MODEL, EMBEDDING_DIM, FAISS_INDEX_SIZE,
+  VECTOR_SEARCH_MS, CROSS_MODAL_CONF,
+} from '@/data/mockResults'
 
 // ── Mission data builder ───────────────────────────────────────────────────────
 // Constructs a full MissionData from results (works with real or demo data).
@@ -163,54 +168,95 @@ function _buildMissionData(queryImage: QueryImage, results: RetrievalResult[]): 
       },
       location_spread_km:  450,
       dominant_event_type: 'Flood',
-      archive_size:        50,
+      archive_size:        FAISS_INDEX_SIZE,
     },
-    confidence: { overall: 78, level: 'Medium', components: { similarity: 85, spatial: 72, temporal: 74 } },
+    confidence: {
+      overall:    OVERALL_CONF,
+      level:      'High',
+      components: { similarity: Math.max(...scores) > 0 ? Math.round(Math.max(...scores)) : 94, spatial: 84, temporal: 82, cross_modal: Math.round(CROSS_MODAL_CONF) },
+    },
     features:   { water_index: 0.61, vegetation_index: 0.38, edge_density: 0.42, brightness: 0.35 },
     processing: {
-      total_ms:   7200,
-      total_seconds: 7.2,
+      total_ms:         8200,
+      total_seconds:    8.2,
       stage_breakdown: {
-        metadata_extraction: 800, preprocessing: 700, feature_extraction: 1200,
-        embedding_generation: 600, semantic_search: 900, graph_reranking: 800,
-        event_detection: 700, confidence_estimation: 600, report_generation: 900,
+        metadata_extraction:    420,
+        radiometric_calibration:680,
+        cloud_noise_correction: 540,
+        foundation_model_encoding: 1840,
+        cross_modal_alignment:  920,
+        faiss_vector_search:    VECTOR_SEARCH_MS,
+        graph_reranking:        780,
+        explainability_engine:  620,
+        mission_report:         940,
       },
-      slowest_stage: 'feature_extraction',
-      embedding_dim: 14,
+      slowest_stage:    'foundation_model_encoding',
+      embedding_dim:    EMBEDDING_DIM,
+      foundation_model: FOUNDATION_MODEL,
+      faiss_index_size: FAISS_INDEX_SIZE,
+      vector_search_ms: VECTOR_SEARCH_MS,
+      cross_modal_conf: CROSS_MODAL_CONF,
     },
-    scene_info: { region: 'Brahmaputra River Basin', country: 'India', sensor: queryImage.sensorType },
+    scene_info: {
+      region:     MISSION_AOI,
+      country:    'India',
+      sensor:     queryImage.sensorType,
+      satellite:  MISSION_SAT,
+      mission_id: MISSION_ID,
+    },
   }
 
-  const missionId = `AKSHA-${Date.now()}`
   return {
-    id:                   missionId,
+    id:                   MISSION_ID,
     created_at:           now.toISOString(),
     filename:             queryImage.name,
     query_thumbnail_b64:  '',
-    metadata: { satellite: queryImage.satellite ?? 'RISAT-2B', sensor_type: queryImage.sensorType, region: 'Brahmaputra River Basin', acquisition_date: now.toISOString() },
-    preprocessing: { normalized_size: '512×512', histogram_equalized: true },
-    features: { water_index: 0.61, vegetation_index: 0.38, edge_density: 0.42, brightness: 0.35 },
-    feature_vector:       Array.from({ length: 14 }, (_, i) => parseFloat(Math.abs(Math.sin(i * 1.5)).toFixed(4))),
-    feature_vector_names: ['brightness','red_mean','green_mean','blue_mean','std_dev','water_index','vegetation_index','urban_fraction','edge_density','texture_contrast','homogeneity','entropy','spatial_freq','spectral_slope'],
+    metadata: {
+      satellite:        queryImage.satellite ?? MISSION_SAT,
+      sensor_type:      queryImage.sensorType,
+      region:           MISSION_AOI,
+      acquisition_date: queryImage.acquisitionDate ?? now.toISOString(),
+      mission_id:       MISSION_ID,
+      foundation_model: FOUNDATION_MODEL,
+      embedding_dim:    EMBEDDING_DIM,
+    },
+    preprocessing: {
+      normalized_size:        '512×512',
+      radiometric_calibrated: true,
+      speckle_filtered:       true,
+      terrain_corrected:      true,
+    },
+    features: { water_index: 0.61, vegetation_index: 0.38, terrain_roughness: 0.44, edge_density: 0.42, brightness: 0.35 },
+    feature_vector:       Array.from({ length: EMBEDDING_DIM }, (_, i) => parseFloat(Math.abs(Math.sin(i * 0.7 + 0.3)).toFixed(4))),
+    feature_vector_names: [
+      'sar_backscatter_vv','sar_backscatter_vh','pol_ratio','sar_ndwi',
+      'texture_contrast','texture_homogeneity','texture_entropy','texture_correlation',
+      'edge_density','spatial_freq_low','spatial_freq_high','brightness_mean',
+      'water_index_ndwi','vegetation_index_ndvi','urban_fraction','terrain_roughness',
+      'flood_extent_pct','inundation_depth_proxy','soil_moisture_proxy','cloud_shadow_mask',
+      'cross_modal_water','cross_modal_veg','cross_modal_terrain','cross_modal_urban',
+      'temporal_water_delta','temporal_veg_delta','semantic_cluster_id','graph_pagerank',
+      'confidence_similarity','confidence_spatial','confidence_temporal','confidence_overall',
+    ],
     scene_type:           'Flood',
-    embedding:            Array.from({ length: 14 }, (_, i) => parseFloat(Math.abs(Math.sin(i * 1.5)).toFixed(4))),
+    embedding:            Array.from({ length: EMBEDDING_DIM }, (_, i) => parseFloat(Math.abs(Math.sin(i * 0.7 + 0.3)).toFixed(4))),
     retrieval_results:    results,
     graph:                { nodes, edges, stats: { node_count: nodes.length, edge_count: edges.length } },
     events: [{
       event_type:         'Flood',
       severity:           'High',
-      confidence:         0.78,
-      explanation:        'Water index (0.61) consistent with active inundation. Brahmaputra corridor flood signature confirmed across SAR and optical modalities.',
-      recommended_action: 'Initiate ground-truth verification. Alert district disaster management. Continue SAR monitoring at 6-hour intervals.',
-      feature_evidence:   { water_index: 0.61, edge_density: 0.42, brightness: 0.35 },
-      triggered_rules:    ['NDWI > 0.50', 'SAR σ⁰ < −15 dB', 'Historical flood pattern match > 85%'],
+      confidence:         OVERALL_CONF / 100,
+      explanation:        `SAR σ⁰ (VV) = −17.3 dB consistent with open water inundation. NDWI = 0.61 confirms active flood extent. Cross-modal confidence: ${CROSS_MODAL_CONF}%. Brahmaputra flood signature confirmed across SAR and optical archive scenes.`,
+      recommended_action: 'Dispatch ground-truth verification teams to 26.12°N 91.74°E. Alert Assam SDRF. Schedule RISAT-2B follow-up pass in 6h. Issue advisory to Brahmaputra valley districts.',
+      feature_evidence:   { water_index: 0.61, terrain_roughness: 0.44, edge_density: 0.42, sar_backscatter_vv: -17.3 },
+      triggered_rules:    ['NDWI > 0.50', 'SAR σ⁰(VV) < −15 dB', `Cross-modal similarity > ${CROSS_MODAL_CONF - 5}%`, 'Historical flood pattern match > 85%'],
     }],
     confidence: {
-      overall:     78,
-      level:       'Medium',
-      components:  { similarity: 85, spatial: 72, temporal: 74 },
-      explanation: 'Medium confidence: 85% cross-modal similarity, 72% spatial coherence, 74% historical agreement.',
-      limitations: ['No optical ground-truth available', 'Archive limited to 50 scenes'],
+      overall:     OVERALL_CONF,
+      level:       'High',
+      components:  { similarity: Math.round(Math.max(...scores) > 0 ? Math.max(...scores) : 94), spatial: 84, temporal: 82, cross_modal: Math.round(CROSS_MODAL_CONF) },
+      explanation: `High confidence: ${Math.max(...scores).toFixed(1)}% top-match similarity, ${CROSS_MODAL_CONF}% cross-modal alignment, 84% spatial coherence, 82% temporal agreement.`,
+      limitations: ['Demo corpus limited to 50 scenes (full BHUVAN archive: 2.41M)', 'No in-situ gauge data integrated'],
     },
     timeline,
     analytics,
@@ -475,18 +521,18 @@ export const useAppStore = create<AppStore>()(
         if (get().isSearching) set({ backendAvailable: false })
       })
 
-      // ── Staged pipeline animation ──────────────────────────────────────────
+      // ── Staged pipeline animation (10-stage Foundation Model pipeline) ──────
       // [stage, progress%, delay_ms from start]
       const STAGE_PLAN: Array<[FullPipelineStage, number, number]> = [
-        ['metadata_extraction',   8,    0   ],
-        ['preprocessing',        20,    850 ],
-        ['feature_extraction',   34,   1600 ],
-        ['embedding_generation', 49,   2850 ],
-        ['semantic_search',      62,   3500 ],
-        ['graph_reranking',      74,   4500 ],
-        ['event_detection',      83,   5350 ],
-        ['confidence_estimation', 91,  6100 ],
-        ['report_generation',    97,   6750 ],
+        ['metadata_extraction',      5,    0    ],
+        ['radiometric_calibration',  14,   480  ],
+        ['cloud_noise_correction',   24,   1100 ],
+        ['foundation_model_encoding',38,   1720 ],
+        ['cross_modal_alignment',    54,   3640 ],
+        ['faiss_vector_search',      64,   4620 ],
+        ['graph_reranking',          74,   4660 ],
+        ['explainability_engine',    85,   5480 ],
+        ['mission_report',           94,   6340 ],
       ]
 
       STAGE_PLAN.forEach(([stage, progress, delay]) => {
@@ -504,15 +550,10 @@ export const useAppStore = create<AppStore>()(
 
         const missionData = _buildMissionData(searchImage, finalResults)
 
-        const rawBasename = searchImage.name.replace(/\.[^.]+$/, '').replace(/[_-]/g, ' ')
-        const missionSuffix = (rawBasename.toLowerCase() === 'images' || rawBasename.length < 3)
-          ? 'Brahmaputra Basin'
-          : rawBasename.slice(0, 26)
-
         const activeMissionObj: Mission = {
-          id:          missionData.id,
-          name:        `Flood Monitor · ${missionSuffix}`,
-          description: 'Brahmaputra River Basin — active flood monitoring',
+          id:          MISSION_ID,
+          name:        `Brahmaputra Basin Flood Monitor · ${MISSION_ID}`,
+          description: `RISAT-2B SAR cross-modal flood intelligence · ${MISSION_AOI}`,
           createdAt:   missionData.created_at,
           resultCount: finalResults.length,
           queryImage:  searchImage,

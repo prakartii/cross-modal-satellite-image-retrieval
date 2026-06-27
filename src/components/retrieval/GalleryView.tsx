@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   MapPin, Eye, GitCompare, Pin, X,
-  Leaf, Waves, Grid3X3, Map, Crosshair,
+  Leaf, Waves, Mountain, Map, Crosshair,
   Cloud, Radio, Clock, Hash, ChevronRight,
   ArrowLeftRight, TrendingUp, TrendingDown,
   AlertTriangle, Target, FileText, Activity,
@@ -24,11 +24,11 @@ const TABS: { id: Tab; label: string; icon: typeof Eye }[] = [
 ]
 
 const EXPLAIN_DIMS = [
-  { key: 'vegetation', label: 'Vegetation', icon: Leaf,      color: '#22C55E', desc: 'Riparian cover · NDVI pattern'     },
-  { key: 'water',      label: 'Water Body', icon: Waves,     color: '#3B82F6', desc: 'Channel morphology · flood extent'  },
-  { key: 'texture',    label: 'Texture',    icon: Grid3X3,   color: '#14B8A6', desc: 'Surface roughness · alluvial σ'    },
-  { key: 'spatial',    label: 'Spatial',    icon: Map,       color: '#8B5CF6', desc: 'Geometric alignment in embed space' },
-  { key: 'overall',    label: 'Confidence', icon: Crosshair, color: '#F8FAFC', desc: 'Weighted cross-modal retrieval'     },
+  { key: 'water',      label: 'Water Body',  icon: Waves,    color: '#3B82F6', desc: 'Channel morphology · NDWI · flood extent'   },
+  { key: 'vegetation', label: 'Vegetation',  icon: Leaf,     color: '#22C55E', desc: 'Riparian cover · NDVI · canopy signature'    },
+  { key: 'terrain',    label: 'Terrain',     icon: Mountain, color: '#14B8A6', desc: 'Floodplain morphology · elevation · texture'  },
+  { key: 'spatial',    label: 'Cross-Modal', icon: Map,      color: '#8B5CF6', desc: 'SAR↔Optical embedding space alignment'        },
+  { key: 'overall',    label: 'Confidence',  icon: Crosshair,color: '#F8FAFC', desc: 'Weighted cross-modal retrieval confidence'    },
 ] as const
 
 // Temporal evolution frames (simulated AOI history)
@@ -147,10 +147,13 @@ function ResultRow({ result, index, selected, onSelect }: {
 }) {
   const simColor = getSimilarityColor(result.similarityScore)
 
+  // Rank-weighted stagger: rank 1 enters fastest, lower ranks delayed slightly more
+  const rankDelay = Math.log1p(result.rank - 1) * 0.04 + index * 0.028
+
   return (
     <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
       whileHover={{ backgroundColor: selected ? 'rgba(59,130,246,0.08)' : 'rgba(255,255,255,0.02)' }}
-      transition={{ delay: index * 0.035, duration: 0.22 }}
+      transition={{ delay: rankDelay, duration: 0.22, ease: [0.25, 0.46, 0.45, 0.94] }}
       onClick={onSelect}
       className="flex items-center gap-3.5 px-5 py-3 cursor-pointer group relative"
       style={{ borderBottom: '1px solid rgba(45,55,72,0.2)', background: selected ? 'rgba(59,130,246,0.06)' : 'transparent' }}>
@@ -191,6 +194,20 @@ function ResultRow({ result, index, selected, onSelect }: {
             )}
           </div>
         )}
+        {/* Water / Vegetation / Terrain similarity chips */}
+        <div className="flex items-center gap-1 mt-1">
+          {([
+            { label: 'Water',   value: result.featureSimilarity.water,      color: '#3B82F6' },
+            { label: 'Veg',     value: result.featureSimilarity.vegetation, color: '#22C55E' },
+            { label: 'Terrain', value: result.featureSimilarity.terrain,    color: '#14B8A6' },
+          ] as const).map(({ label, value, color }) => (
+            <span key={label}
+              className="px-1.5 py-0.5 rounded font-mono leading-none"
+              style={{ fontSize: 9, background: `${color}14`, color, border: `1px solid ${color}28` }}>
+              {label} {Math.round(value)}%
+            </span>
+          ))}
+        </div>
       </div>
 
       <div className="flex-shrink-0 text-right">
@@ -311,9 +328,9 @@ function OverviewTab({ result, onExplain }: { result: RetrievalResult; onExplain
   const spatSim  = (1 - result.embeddingDistance) * 100
 
   const dimValues: Record<string, number> = {
-    vegetation: result.featureSimilarity.vegetation,
     water:      result.featureSimilarity.water,
-    texture:    result.featureSimilarity.texture,
+    vegetation: result.featureSimilarity.vegetation,
+    terrain:    result.featureSimilarity.terrain,
     spatial:    spatSim,
     overall:    result.similarityScore,
   }

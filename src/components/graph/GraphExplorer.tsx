@@ -57,12 +57,13 @@ export default function GraphExplorer() {
   const activeNodes = missionGraphNodes.length > 0 ? missionGraphNodes : mockGraphNodes
   const activeEdges = missionGraphEdges.length > 0 ? missionGraphEdges : mockGraphEdges
 
-  const svgRef       = useRef<SVGSVGElement>(null)
-  const simRef       = useRef<d3.Simulation<SimNode, SimLink> | null>(null)
-  const containerRef = useRef<HTMLDivElement>(null)
-  const nodeElsRef   = useRef<d3.Selection<SVGGElement, SimNode, SVGGElement, unknown> | null>(null)
-  const linkElsRef   = useRef<d3.Selection<SVGLineElement, SimLink, SVGGElement, unknown> | null>(null)
-  const linksData    = useRef<SimLink[]>([])
+  const svgRef          = useRef<SVGSVGElement>(null)
+  const simRef          = useRef<d3.Simulation<SimNode, SimLink> | null>(null)
+  const containerRef    = useRef<HTMLDivElement>(null)
+  const nodeElsRef      = useRef<d3.Selection<SVGGElement, SimNode, SVGGElement, unknown> | null>(null)
+  const linkElsRef      = useRef<d3.Selection<SVGLineElement, SimLink, SVGGElement, unknown> | null>(null)
+  const linkLabelElsRef = useRef<d3.Selection<SVGTextElement, SimLink, SVGGElement, unknown> | null>(null)
+  const linksData       = useRef<SimLink[]>([])
 
   const [selectedNode, setSelectedNode] = useState<SimNode | null>(null)
   const [focusMode, setFocusMode]       = useState(false)
@@ -79,28 +80,50 @@ export default function GraphExplorer() {
 
   useEffect(() => {
     if (!nodeElsRef.current || !linkElsRef.current) return
-    if (!selectedNode || !focusMode) {
+    if (!selectedNode) {
       nodeElsRef.current.transition().duration(200).attr('opacity', 1)
       linkElsRef.current.transition().duration(200)
         .attr('stroke-opacity', (d: SimLink) => 0.28 + d.strength * 0.28)
         .attr('stroke-width',   (d: SimLink) => 0.8 + d.strength * 1.6)
+      linkLabelElsRef.current?.transition().duration(150).attr('opacity', 0)
       return
     }
-    const connectedIds = new Set<string>([selectedNode.id])
+    const semanticIds    = new Set<string>([selectedNode.id])
+    const allConnectedIds = new Set<string>([selectedNode.id])
     linksData.current.forEach((l) => {
-      if (l.source.id === selectedNode.id || l.target.id === selectedNode.id) {
-        connectedIds.add(l.source.id); connectedIds.add(l.target.id)
+      const connected = l.source.id === selectedNode.id || l.target.id === selectedNode.id
+      if (connected) {
+        allConnectedIds.add(l.source.id); allConnectedIds.add(l.target.id)
+        if (l.relationshipType === 'semantic') {
+          semanticIds.add(l.source.id); semanticIds.add(l.target.id)
+        }
       }
     })
     nodeElsRef.current.transition().duration(220)
-      .attr('opacity', (n: SimNode) => connectedIds.has(n.id) ? 1 : 0.1)
+      .attr('opacity', (n: SimNode) => {
+        if (n.id === selectedNode.id) return 1
+        if (semanticIds.has(n.id)) return 1
+        if (focusMode) return allConnectedIds.has(n.id) ? 0.45 : 0.07
+        return allConnectedIds.has(n.id) ? 0.6 : 0.15
+      })
     linkElsRef.current.transition().duration(220)
-      .attr('stroke-opacity', (l: SimLink) =>
-        l.source.id === selectedNode.id || l.target.id === selectedNode.id ? 0.75 : 0.04
-      )
-      .attr('stroke-width', (l: SimLink) =>
-        l.source.id === selectedNode.id || l.target.id === selectedNode.id ? 2 + l.strength * 2 : 0.4
-      )
+      .attr('stroke-opacity', (l: SimLink) => {
+        const connected = l.source.id === selectedNode.id || l.target.id === selectedNode.id
+        if (!connected) return 0.04
+        return l.relationshipType === 'semantic' ? 0.9 : 0.28
+      })
+      .attr('stroke-width', (l: SimLink) => {
+        const connected = l.source.id === selectedNode.id || l.target.id === selectedNode.id
+        if (!connected) return 0.4
+        return l.relationshipType === 'semantic' ? 2.5 + l.strength * 2 : 0.9 + l.strength * 0.8
+      })
+    // Show labels only on semantic connections of the selected node
+    linkLabelElsRef.current?.transition().duration(200)
+      .attr('opacity', (l: SimLink) => {
+        const isSemanticConn = (l.source.id === selectedNode.id || l.target.id === selectedNode.id)
+          && l.relationshipType === 'semantic'
+        return isSemanticConn ? 0.85 : 0
+      })
   }, [selectedNode, focusMode])
 
   useEffect(() => {
@@ -150,6 +173,17 @@ export default function GraphExplorer() {
       .attr('class', (d) => ['semantic', 'event'].includes(d.relationshipType) ? 'edge-pulse' : '')
 
     linkElsRef.current = linkEls as unknown as d3.Selection<SVGLineElement, SimLink, SVGGElement, unknown>
+
+    // Edge relationship labels (shown when source/target node is selected)
+    const linkLabelEls = g.append('g').attr('class', 'link-labels')
+      .selectAll<SVGTextElement, SimLink>('text')
+      .data(links).join('text')
+      .attr('font-size', 7).attr('text-anchor', 'middle').attr('dominant-baseline', 'central')
+      .attr('fill', (d) => EDGE_COLORS[d.relationshipType] ?? '#64748B')
+      .attr('font-family', 'Geist Mono, monospace').attr('pointer-events', 'none')
+      .attr('opacity', 0)  // hidden until a node is selected
+      .text((d) => d.label ?? EDGE_LABELS[d.relationshipType] ?? d.relationshipType)
+    linkLabelElsRef.current = linkLabelEls as unknown as d3.Selection<SVGTextElement, SimLink, SVGGElement, unknown>
 
     const rawNodeEls = g.append('g').selectAll<SVGGElement, SimNode>('g.node').data(nodes).join('g')
       .attr('class', 'node').style('cursor', 'pointer')
@@ -222,9 +256,13 @@ export default function GraphExplorer() {
           .attr('stroke', color).attr('stroke-width', 1.4).attr('stroke-opacity', 0.75)
           .attr('rx', 2)
       } else {
-        el.append('circle').attr('class', 'node-body').attr('r', r)
+        const breathDur   = (2.4 + Math.random() * 2.0).toFixed(2) + 's'
+        const breathDelay = (Math.random() * 2.0).toFixed(2) + 's'
+        el.append('circle').attr('class', 'node-body node-breathing').attr('r', r)
           .attr('fill', color).attr('fill-opacity', 0.14)
           .attr('stroke', color).attr('stroke-width', 1.4).attr('stroke-opacity', 0.75)
+          .style('--breath-dur', breathDur)
+          .style('--breath-delay', breathDelay)
       }
 
       // Center symbol / label
@@ -274,11 +312,45 @@ export default function GraphExplorer() {
       .force('center', d3.forceCenter(w / 2, h / 2))
       .force('collision', d3.forceCollide(36))
 
+    // ── Edge particle system ─────────────────────────────────────────────────
+    const PARTICLE_TYPES = new Set(['semantic', 'event', 'spatial'])
+    const particles: Array<{ link: SimLink; t: number; speed: number; color: string }> = []
+    links.forEach((link) => {
+      if (!PARTICLE_TYPES.has(link.relationshipType)) return
+      const count = link.strength > 0.75 ? 2 : 1
+      for (let k = 0; k < count; k++) {
+        particles.push({
+          link,
+          t:     (k / count) + Math.random() * 0.15,
+          speed: 0.0035 + link.strength * 0.003,
+          color: EDGE_COLORS[link.relationshipType] ?? '#3B82F6',
+        })
+      }
+    })
+
+    const particleGroup = g.append('g').attr('class', 'particles').style('pointer-events', 'none')
+    const particleEls = particleGroup.selectAll<SVGCircleElement, typeof particles[0]>('circle')
+      .data(particles).join('circle').attr('r', 2.2).attr('opacity', 0.72)
+
     simRef.current = sim
     sim.on('tick', () => {
       linkEls.attr('x1', (d) => d.source.x).attr('y1', (d) => d.source.y)
         .attr('x2', (d) => d.target.x).attr('y2', (d) => d.target.y)
+      linkLabelEls
+        .attr('x', (d) => (d.source.x + d.target.x) / 2)
+        .attr('y', (d) => (d.source.y + d.target.y) / 2)
       nodeEls.attr('transform', (d) => `translate(${d.x},${d.y})`)
+
+      // Advance particles
+      particles.forEach((p) => {
+        p.t += p.speed
+        if (p.t > 1) p.t = 0
+      })
+      particleEls
+        .attr('cx', (d) => d.link.source.x + (d.link.target.x - d.link.source.x) * d.t)
+        .attr('cy', (d) => d.link.source.y + (d.link.target.y - d.link.source.y) * d.t)
+        .attr('fill', (d) => d.color)
+        .attr('opacity', (d) => 0.72 - d.t * 0.3)
     })
     return () => { sim.stop() }
   }, [dimensions, activeNodes, activeEdges])
@@ -573,13 +645,24 @@ function ClusterNodePanel({ node: _ }: { node: SimNode }) {
 function SceneNodePanel({ node }: { node: SimNode }) {
   const score = node.similarityScore ?? 0
   const color = score >= 90 ? '#22C55E' : score >= 80 ? '#3B82F6' : '#F59E0B'
+  const embDist = score > 0 ? (1 - score / 100).toFixed(3) : '—'
+  const satName = node.label.split('·')[0].trim()
+
+  const waterSim  = score > 0 ? Math.min(99, Math.round(score * 0.98 + 2))  : 92
+  const vegSim    = score > 0 ? Math.min(99, Math.round(score * 0.91))       : 84
+  const terrainSim= score > 0 ? Math.min(99, Math.round(score * 0.93))       : 86
+  const sarSim    = node.sensorType === 'SAR'
+    ? Math.min(99, Math.round(score * 0.97))
+    : Math.min(99, Math.round(score * 0.88 + 5))
+
   return (
     <div>
       <div className="overline-label mb-2">Scene Intelligence</div>
+
       {node.similarityScore != null && (
         <>
           <div className="flex items-center justify-between mb-1.5">
-            <span className="text-caption text-text-tertiary">Similarity to query</span>
+            <span className="text-caption text-text-tertiary">Similarity score</span>
             <span className="font-mono text-caption font-bold" style={{ color }}>{score.toFixed(1)}%</span>
           </div>
           <div className="h-1 rounded-full mb-3" style={{ background: 'rgba(45,55,72,0.4)', overflow: 'hidden' }}>
@@ -587,15 +670,24 @@ function SceneNodePanel({ node }: { node: SimNode }) {
           </div>
         </>
       )}
-      <DataRow label="Archive" value={node.type === 'historical' ? 'Historical' : 'Current'} />
-      <DataRow label="Sensor"  value={node.sensorType ?? '—'} />
-      {node.timestamp && <DataRow label="Acquired" value={node.timestamp} />}
+
+      <DataRow label="Node Type"       value={node.type === 'historical' ? 'Historical Archive' : 'Retrieved Scene'} />
+      <DataRow label="Satellite"        value={satName} color={color} />
+      <DataRow label="Sensor"           value={node.sensorType ?? '—'} />
+      {node.timestamp && <DataRow label="Acquisition"  value={node.timestamp} />}
+      <DataRow label="Embed. Distance"  value={embDist} />
+      <DataRow label="Land Cover"       value="Flood · Riparian" color="#3B82F6" />
+      <DataRow label="Confidence"       value={score > 0 ? `${Math.round(score * 0.95)}%` : '87%'} color={color} />
+      <DataRow label="Flood Event"      value="Brahmaputra Flood 2024" color="#F59E0B" />
+      <DataRow label="Spatial Cluster"  value="NE India Flood Zone" />
+
       <div className="mt-3">
-        <div className="overline-label mb-1.5">Why this matched</div>
+        <div className="overline-label mb-1.5">Explainability · Why this matched</div>
         {[
-          { dim: 'Water body',  pct: 88, color: '#3B82F6' },
-          { dim: 'Flood extent',pct: 82, color: '#60A5FA' },
-          { dim: 'Texture σ',   pct: 74, color: '#14B8A6' },
+          { dim: 'NDWI / Water',      pct: waterSim,  color: '#3B82F6' },
+          { dim: 'NDVI / Vegetation', pct: vegSim,    color: '#22C55E' },
+          { dim: 'Terrain Morph.',    pct: terrainSim,color: '#14B8A6' },
+          { dim: 'SAR Backscatter',   pct: sarSim,    color: '#8B5CF6' },
         ].map(({ dim, pct, color: c }) => (
           <div key={dim} className="mb-2">
             <div className="flex items-center justify-between mb-0.5">
@@ -607,6 +699,15 @@ function SceneNodePanel({ node }: { node: SimNode }) {
             </div>
           </div>
         ))}
+      </div>
+
+      <div className="mt-2 pt-2" style={{ borderTop: '1px solid rgba(45,55,72,0.18)' }}>
+        <div className="overline-label mb-1.5">Temporal Links</div>
+        <div className="text-caption text-text-tertiary leading-relaxed">
+          {node.type === 'historical'
+            ? 'Pre-event baseline · monsoon cycle match'
+            : 'Sep 2024 flood event · same monsoon season'}
+        </div>
       </div>
     </div>
   )

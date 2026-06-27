@@ -10,9 +10,9 @@ import { cn } from '@/lib/utils'
 const NAV_ITEMS = [
   { id: 'command-center',    label: 'Command Center',     icon: Globe       },
   { id: 'search',            label: 'Intelligence Search', icon: Satellite   },
-  { id: 'results',           label: 'Results',            icon: LayoutGrid  },
-  { id: 'graph',             label: 'Graph',              icon: Network     },
-  { id: 'analytics',         label: 'Analytics',          icon: BarChart2   },
+  { id: 'results',           label: 'Retrieved Scenes',   icon: LayoutGrid  },
+  { id: 'graph',             label: 'Semantic Graph',     icon: Network     },
+  { id: 'analytics',         label: 'Mission Intel',      icon: BarChart2   },
   { id: 'satellite-tracker', label: 'Sat. Tracker',       icon: Radio       },
 ] as const
 
@@ -119,7 +119,14 @@ export default function TopBar() {
             </>
           ) : (
             <>
-              <div className="status-live" />
+              {/* Heartbeat blink at 1.2 s — matches human resting heart rate */}
+              <div style={{
+                width: 6, height: 6, borderRadius: '50%', background: '#14B8A6', flexShrink: 0,
+                boxShadow: '0 0 6px rgba(20,184,166,0.6)',
+                animation: 'heartbeat 1.2s ease-in-out infinite',
+              }} />
+              <span className="text-overline text-text-tertiary tracking-widest">LIVE</span>
+              <span className="text-overline tracking-widest" style={{ color: '#2D3748' }}>·</span>
               <span className="text-overline text-text-tertiary tracking-widest">BHUVAN</span>
             </>
           )}

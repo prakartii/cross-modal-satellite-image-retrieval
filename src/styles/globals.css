@@ -15,6 +15,21 @@
     --text-primary: #F8FAFC;
     --text-secondary: #94A3B8;
     --text-tertiary: #64748B;
+
+    /* ── Motion tokens ─────────────────────────────────────────────── */
+    --duration-snap:      80ms;
+    --duration-quick:    150ms;
+    --duration-standard: 250ms;
+    --duration-cinematic:800ms;
+
+    --ease-spring:   cubic-bezier(0.34, 1.56, 0.64, 1);
+    --ease-out-soft: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    --ease-in-soft:  cubic-bezier(0.55, 0, 1, 0.45);
+
+    /* ── Glow system ───────────────────────────────────────────────── */
+    --glow-blue:  0 0 16px rgba(59,130,246,0.35), 0 0 32px rgba(59,130,246,0.12);
+    --glow-teal:  0 0 16px rgba(20,184,166,0.35),  0 0 32px rgba(20,184,166,0.12);
+    --glow-alert: 0 0 16px rgba(239,68,68,0.35),   0 0 32px rgba(239,68,68,0.10);
   }
 
   body {
@@ -453,6 +468,27 @@
 @keyframes edgePulse {
   0%, 100% { opacity: 0.3; }
   50%       { opacity: 0.7; }
+}
+
+/* Heartbeat at 1.2 s — mimics resting human heart rate */
+@keyframes heartbeat {
+  0%   { opacity: 1;   transform: scale(1);    box-shadow: 0 0 6px rgba(20,184,166,0.6); }
+  8%   { opacity: 1;   transform: scale(1.35); box-shadow: 0 0 12px rgba(20,184,166,0.9); }
+  16%  { opacity: 0.7; transform: scale(0.9);  box-shadow: 0 0 4px rgba(20,184,166,0.3); }
+  25%  { opacity: 1;   transform: scale(1.2);  box-shadow: 0 0 9px rgba(20,184,166,0.75); }
+  35%  { opacity: 0.6; transform: scale(0.95); box-shadow: 0 0 4px rgba(20,184,166,0.3); }
+  100% { opacity: 0.6; transform: scale(0.95); box-shadow: 0 0 4px rgba(20,184,166,0.3); }
+}
+
+/* Graph node idle breathing — opacity only to avoid D3 transform conflicts */
+@keyframes nodeBreath {
+  0%, 100% { fill-opacity: 0.14; stroke-opacity: 0.65; }
+  50%       { fill-opacity: 0.26; stroke-opacity: 1;    }
+}
+
+.node-breathing {
+  animation: nodeBreath var(--breath-dur, 3.2s) ease-in-out infinite;
+  animation-delay: var(--breath-delay, 0s);
 }
 
 /* Applied to SVG <line> elements in GraphExplorer */

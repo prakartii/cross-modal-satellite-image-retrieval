@@ -15,15 +15,24 @@ import { cn } from '@/lib/utils'
 
 type EarthLayer = 'optical' | 'sar' | 'multispectral' | 'flood' | 'vegetation' | 'urban'
 
-const MISSION_FEED = [
-  { text: 'Flood signature detected',         sub: 'Brahmaputra Basin · 26.12°N 91.74°E', ago: '2m',   color: '#EF4444', status: 'ALERT'      },
-  { text: 'SAR acquisition — 847 scenes',     sub: 'RISAT-2B · Orbit 18924 · ISTRAC',     ago: '12m',  color: '#3B82F6', status: 'PROCESSING' },
-  { text: 'Retrieval complete · 94.2% match', sub: 'Scene R2B-24062402 · 1.8s latency',   ago: '1h',   color: '#14B8A6', status: 'ACTIVE'     },
-  { text: 'Sentinel-1A overpass commenced',   sub: 'NE India corridor · Pass S1A-49312',  ago: '2h',   color: '#22C55E', status: 'ACTIVE'     },
-  { text: 'Cloud cover alert · 78%',          sub: 'Tamil Nadu coast · Cycle BOB-04',     ago: '3h',   color: '#F59E0B', status: 'ALERT'      },
-  { text: 'Cartosat-3 PAN acquired',          sub: 'Mumbai MMR · Scene CS3-23441',        ago: '4h',   color: '#3B82F6', status: 'ARCHIVED'   },
-  { text: 'NDVI anomaly — −0.42 NDWI',        sub: 'Rajasthan Plains · Drought zone',     ago: '5h',   color: '#F59E0B', status: 'ALERT'      },
+// Seconds-ago at app load — tick increments these so timestamps tick forward
+const FEED_BASE_OFFSETS = [120, 720, 3600, 7200, 10800, 14400, 18000]
+
+const MISSION_FEED_STATIC = [
+  { text: 'Flood signature detected',         sub: 'Brahmaputra Basin · 26.12°N 91.74°E', color: '#EF4444', status: 'ALERT'      },
+  { text: 'SAR acquisition — 847 scenes',     sub: 'RISAT-2B · Orbit 18924 · ISTRAC',     color: '#3B82F6', status: 'PROCESSING' },
+  { text: 'Retrieval complete · 94.2% match', sub: 'Scene R2B-24062402 · 1.8s latency',   color: '#14B8A6', status: 'ACTIVE'     },
+  { text: 'Sentinel-1A overpass commenced',   sub: 'NE India corridor · Pass S1A-49312',   color: '#22C55E', status: 'ACTIVE'     },
+  { text: 'Cloud cover alert · 78%',          sub: 'Tamil Nadu coast · Cycle BOB-04',      color: '#F59E0B', status: 'ALERT'      },
+  { text: 'Cartosat-3 PAN acquired',          sub: 'Mumbai MMR · Scene CS3-23441',         color: '#3B82F6', status: 'ARCHIVED'   },
+  { text: 'NDVI anomaly — −0.42 NDWI',        sub: 'Rajasthan Plains · Drought zone',      color: '#F59E0B', status: 'ALERT'      },
 ]
+
+function fmtAgo(seconds: number): string {
+  if (seconds < 60)   return `${seconds}s`
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m`
+  return `${Math.floor(seconds / 3600)}h`
+}
 
 const EARTH_LAYERS: { id: EarthLayer; label: string; color: string }[] = [
   { id: 'optical',       label: 'Optical',    color: '#22C55E' },
@@ -91,6 +100,14 @@ function ProgressBar({ value, color }: { value: number; color: string }) {
   )
 }
 
+// ─── Live telemetry helpers ──────────────────────────────────────────────────
+function formatEta(seconds: number): string {
+  if (seconds <= 0) return 'NOW'
+  const m = Math.floor(seconds / 60)
+  const s = seconds % 60
+  return m > 0 ? `${m}m ${String(s).padStart(2, '0')}s` : `${s}s`
+}
+
 export default function CommandCenter() {
   const isLoaded        = useAppStore((s) => s.isLoaded)
   const setEarthLoaded  = useAppStore((s) => s.setEarthLoaded)
@@ -107,10 +124,71 @@ export default function CommandCenter() {
   const backendAvailable= useAppStore((s) => s.backendAvailable)
   const [tick, setTick] = useState(0)
 
+  // ── Live telemetry state ────────────────────────────────────────────────────
+  const [liveBat,        setLiveBat]        = useState(() => satelliteHealth.map(s => s.bat))
+  const [liveProgress,   setLiveProgress]   = useState(() => activeDownlinks.map(d => d.progress))
+  const [liveIngestion,  setLiveIngestion]  = useState(127)
+  const [liveFloodPct,   setLiveFloodPct]   = useState([12.4, 3.2, 1.8, 0.9])
+  const [etaSeconds,     setEtaSeconds]     = useState(4 * 60 + 12)
+
   const hasMission = !!activeMission && !!missionAnalytics
 
-  useEffect(() => { const t = setTimeout(() => setEarthLoaded(true), 5000); return () => clearTimeout(t) }, [setEarthLoaded])
+  // Boot sequence — staged typewriter lines
+  const [bootLines, setBootLines] = useState<string[]>([])
+  const [bootReady, setBootReady] = useState(false)
+
+  useEffect(() => {
+    const SEQ: [number, string][] = [
+      [0,    'SYS_INIT · AKSHA v3.2.1 · ISRO BHUVAN'],
+      [580,  'BHUVAN GEODATA LINK ············ ESTABLISHED'],
+      [1150, 'ISTRAC UPLINK · BANGALORE ······· NOMINAL'],
+      [1850, 'ARCHIVE LOADED · 2,410,847 SCENES INDEXED'],
+      [2700, 'ORBIT SYNC · 847 ACTIVE PASSES · TLE FRESH'],
+      [3600, 'SYSTEM READY'],
+    ]
+    const timers: ReturnType<typeof setTimeout>[] = []
+    SEQ.forEach(([ms, line]) => {
+      timers.push(setTimeout(() => setBootLines(prev => [...prev, line]), ms))
+    })
+    timers.push(setTimeout(() => setBootReady(true), 4000))
+    timers.push(setTimeout(() => setEarthLoaded(true), 5000))
+    return () => timers.forEach(clearTimeout)
+  }, [setEarthLoaded])
   useEffect(() => { const t = setInterval(() => setTick(n => n + 1), 1000); return () => clearInterval(t) }, [])
+
+  // ── Live telemetry updates ──────────────────────────────────────────────────
+  useEffect(() => {
+    // ETA countdown — every second
+    setEtaSeconds(s => Math.max(0, s - 1))
+
+    // Downlink progress — continuous at data rate
+    setLiveProgress(prev => prev.map((p, i) => {
+      const rate = i === 0 ? 0.0062 : 0.0056   // RISAT-2B faster than Cartosat-3
+      return Math.min(0.9995, p + rate + (Math.random() - 0.5) * 0.001)
+    }))
+
+    // Battery drift — every ~12 s
+    if (tick % 12 === 0) {
+      setLiveBat(prev => prev.map((b, i) => {
+        const drift = satelliteHealth[i]?.live ? (Math.random() * 0.4 - 0.2) : 0
+        return Math.max(0, Math.min(100, parseFloat((b + drift).toFixed(1))))
+      }))
+    }
+
+    // Ingestion rate — every ~7 s
+    if (tick % 7 === 0) {
+      setLiveIngestion(Math.round(119 + Math.random() * 15))
+    }
+
+    // Flood level changes — every ~20 s
+    if (tick % 20 === 0) {
+      setLiveFloodPct(prev => prev.map((v, i) => {
+        const scale = i === 0 ? 0.22 : 0.08   // Brahmaputra fluctuates more
+        const drift = (Math.random() * scale * 2) - scale
+        return parseFloat(Math.max(0.1, v + drift).toFixed(1))
+      }))
+    }
+  }, [tick])
 
   const now    = new Date()
   const utcStr = now.toUTCString().slice(5, 25)
@@ -120,29 +198,94 @@ export default function CommandCenter() {
     <div className="relative w-full h-full overflow-hidden">
       <div className="absolute inset-0"><EarthGlobe /></div>
 
-      {/* Boot screen */}
+      {/* Boot screen — staged typewriter sequence */}
       <AnimatePresence>
         {!isLoaded && (
-          <motion.div key="loader" initial={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 1.2, delay: 0.4 }}
-            className="absolute inset-0 flex flex-col items-center justify-center z-50" style={{ background: '#080D16' }}>
-            <motion.div initial={{ scale: 0.88, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ duration: 0.65 }}
-              className="flex flex-col items-center gap-6">
-              <div className="w-14 h-14 rounded-full relative flex items-center justify-center"
-                style={{ border: '1px solid rgba(59,130,246,0.18)', background: 'rgba(59,130,246,0.05)' }}>
-                <div className="absolute inset-1 rounded-full border animate-spin"
-                  style={{ borderColor: 'rgba(59,130,246,0.12)', borderTopColor: '#3B82F6' }} />
-                <Satellite className="w-5 h-5 text-blue-primary opacity-60" />
+          <motion.div key="loader" initial={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 1.4, delay: 0.3 }}
+            className="absolute inset-0 flex flex-col items-center justify-center z-50"
+            style={{ background: '#080D16' }}>
+
+            {/* Scanline overlay */}
+            <div className="absolute inset-0 pointer-events-none" style={{
+              backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.013) 2px, rgba(255,255,255,0.013) 4px)',
+            }} />
+
+            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}
+              className="flex flex-col items-center gap-8" style={{ width: 480 }}>
+
+              {/* Logo mark */}
+              <div className="relative">
+                <div className="w-16 h-16 rounded-full flex items-center justify-center relative"
+                  style={{ border: '1px solid rgba(59,130,246,0.22)', background: 'rgba(59,130,246,0.06)' }}>
+                  <div className="absolute inset-1 rounded-full border"
+                    style={{ borderColor: 'rgba(59,130,246,0.1)', borderTopColor: '#3B82F6',
+                      animation: 'spin 1.8s linear infinite' }} />
+                  <div className="absolute inset-3 rounded-full border"
+                    style={{ borderColor: 'rgba(20,184,166,0.08)', borderBottomColor: '#14B8A6',
+                      animation: 'spin 2.6s linear infinite reverse' }} />
+                  <Satellite className="w-5 h-5 relative z-10" style={{ color: '#60A5FA', opacity: 0.85 }} />
+                </div>
+                {/* Orbit ring */}
+                <div className="absolute -inset-3 rounded-full" style={{
+                  border: '1px solid rgba(59,130,246,0.06)',
+                  boxShadow: '0 0 24px rgba(59,130,246,0.08)',
+                }} />
               </div>
+
+              {/* Wordmark */}
               <div className="text-center">
-                <div className="font-display text-display-xl font-bold text-text-primary tracking-tight">AKSHA</div>
-                <div className="text-body-m text-text-tertiary mt-1.5 tracking-wide">Earth Intelligence Beyond Imagery</div>
-                <div className="font-mono text-caption text-text-tertiary mt-1 opacity-60">
-                  ISRO BHUVAN · MISSION CONTROL INTERFACE · v3.2.1
+                <div className="font-display font-bold tracking-tight"
+                  style={{ fontSize: 52, color: '#F8FAFC', letterSpacing: '-0.02em',
+                    textShadow: '0 0 40px rgba(59,130,246,0.25)' }}>
+                  AKSHA
+                </div>
+                <div className="font-mono mt-1" style={{ fontSize: 11, color: '#4A5568', letterSpacing: '0.18em' }}>
+                  EARTH INTELLIGENCE BEYOND IMAGERY
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-teal-primary animate-pulse" />
-                <span className="font-mono text-caption text-text-tertiary">Establishing ISTRAC uplink…</span>
+
+              {/* Boot log terminal */}
+              <div className="w-full rounded-lg overflow-hidden"
+                style={{ background: 'rgba(9,14,25,0.85)', border: '1px solid rgba(59,130,246,0.12)' }}>
+                <div className="px-3 py-1.5 flex items-center gap-1.5"
+                  style={{ borderBottom: '1px solid rgba(59,130,246,0.1)', background: 'rgba(59,130,246,0.04)' }}>
+                  <div className="w-2 h-2 rounded-full" style={{ background: 'rgba(239,68,68,0.5)' }} />
+                  <div className="w-2 h-2 rounded-full" style={{ background: 'rgba(245,158,11,0.5)' }} />
+                  <div className="w-2 h-2 rounded-full" style={{ background: 'rgba(34,197,94,0.5)' }} />
+                  <span className="font-mono ml-2" style={{ fontSize: 10, color: '#2D3748' }}>AKSHA_BOOT_SEQUENCE</span>
+                </div>
+                <div className="p-4 space-y-1.5" style={{ minHeight: 160 }}>
+                  {bootLines.map((line, i) => {
+                    const isReady = line === 'SYSTEM READY'
+                    const isLast  = i === bootLines.length - 1
+                    return (
+                      <motion.div key={i}
+                        initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.22 }}
+                        className="flex items-center gap-2 font-mono"
+                        style={{ fontSize: 11 }}>
+                        <span style={{ color: isReady ? '#22C55E' : '#3B82F6', flexShrink: 0 }}>{'>'}</span>
+                        <span style={{ color: isReady ? '#4ADE80' : '#64748B' }}>{line}</span>
+                        {isLast && !isReady && (
+                          <span style={{ color: '#3B82F6', animation: 'pulse 1s ease-in-out infinite' }}>▮</span>
+                        )}
+                        {isReady && (
+                          <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                            style={{ color: '#22C55E', marginLeft: 4 }}>✓</motion.span>
+                        )}
+                      </motion.div>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Progress bar */}
+              <div className="w-full" style={{ height: 2, background: 'rgba(45,55,72,0.4)', borderRadius: 1, overflow: 'hidden' }}>
+                <motion.div style={{ height: '100%', background: 'linear-gradient(90deg, #3B82F6, #14B8A6)', borderRadius: 1 }}
+                  initial={{ width: '0%' }}
+                  animate={{ width: bootReady ? '100%' : `${(bootLines.length / 6) * 85}%` }}
+                  transition={{ duration: 0.6, ease: 'easeOut' }}
+                />
               </div>
             </motion.div>
           </motion.div>
@@ -205,9 +348,17 @@ export default function CommandCenter() {
                     </span>
                     <span className="text-caption text-text-tertiary">indexed scenes</span>
                   </div>
-                  <div className="flex items-center gap-1.5 mt-1 mb-2.5">
+                  <div className="flex items-center gap-1.5 mt-1">
                     <div className="status-live" style={{ width: 5, height: 5 }} />
-                    <span className="font-mono text-caption text-teal-primary">127 scenes/hr ingestion</span>
+                    <span className="font-mono text-caption text-teal-primary">{liveIngestion} scenes/hr ingestion</span>
+                  </div>
+                  {/* Demo corpus callout */}
+                  <div className="flex items-center gap-1.5 mt-1 mb-2.5 px-2 py-1 rounded"
+                    style={{ background: 'rgba(139,92,246,0.08)', border: '1px solid rgba(139,92,246,0.2)' }}>
+                    <span className="font-mono text-overline font-semibold" style={{ color: '#8B5CF6' }}>
+                      {archiveStats.demoCorpusSize} scenes
+                    </span>
+                    <span className="text-overline text-text-tertiary">— Brahmaputra Basin demo corpus</span>
                   </div>
                 </div>
                 {[
@@ -241,7 +392,10 @@ export default function CommandCenter() {
                   <span className="overline-label">Flood Watch</span>
                   <Waves className="w-3 h-3" style={{ color: '#3B82F6' }} />
                 </div>
-                {floodWatchRegions.map((fw, i) => (
+                {floodWatchRegions.map((fw, i) => {
+                  const livePct = liveFloodPct[i] ?? parseFloat(fw.change)
+                  const changeStr = `${livePct >= 0 ? '+' : ''}${livePct.toFixed(1)}%`
+                  return (
                   <div key={fw.region}
                     className="px-4 py-2.5 flex items-center gap-2.5 hover:bg-white-3 transition-colors cursor-pointer"
                     style={i < floodWatchRegions.length - 1 ? { borderBottom: '1px solid rgba(255,255,255,0.04)' } : {}}>
@@ -253,10 +407,10 @@ export default function CommandCenter() {
                     </div>
                     <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
                       <span className="font-mono text-overline font-semibold" style={{ color: FLOOD_LEVEL_COLOR[fw.level] }}>{fw.level}</span>
-                      <span className="font-mono text-overline" style={{ color: fw.change.startsWith('+') ? '#EF4444' : '#22C55E' }}>{fw.change}</span>
+                      <span className="font-mono text-overline" style={{ color: livePct >= 0 ? '#EF4444' : '#22C55E' }}>{changeStr}</span>
                     </div>
                   </div>
-                ))}
+                )})}
               </div>
 
               {/* Mission Feed */}
@@ -289,22 +443,25 @@ export default function CommandCenter() {
                     </div>
                   </div>
                 )}
-                {MISSION_FEED.slice(0, hasMission ? 5 : 7).map((item, i) => (
-                  <div key={i}
-                    className="flex items-start gap-2 px-4 py-2.5 hover:bg-white-3 transition-colors cursor-pointer"
-                    style={i < MISSION_FEED.length - 1 ? { borderBottom: '1px solid rgba(255,255,255,0.04)' } : {}}>
-                    <div className="w-1.5 h-1.5 rounded-full mt-1 flex-shrink-0"
-                      style={{ background: item.color }} />
-                    <div className="flex-1 min-w-0">
-                      <div className="text-caption text-text-secondary leading-snug">{item.text}</div>
-                      <div className="text-overline text-text-tertiary mt-0.5 truncate">{item.sub}</div>
+                {MISSION_FEED_STATIC.slice(0, hasMission ? 5 : 7).map((item, i) => {
+                  const agoSec = FEED_BASE_OFFSETS[i] + tick
+                  return (
+                    <div key={i}
+                      className="flex items-start gap-2 px-4 py-2.5 hover:bg-white-3 transition-colors cursor-pointer"
+                      style={i < MISSION_FEED_STATIC.length - 1 ? { borderBottom: '1px solid rgba(255,255,255,0.04)' } : {}}>
+                      <div className="w-1.5 h-1.5 rounded-full mt-1 flex-shrink-0"
+                        style={{ background: item.color }} />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-caption text-text-secondary leading-snug">{item.text}</div>
+                        <div className="text-overline text-text-tertiary mt-0.5 truncate">{item.sub}</div>
+                      </div>
+                      <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                        <span className="text-overline text-text-tertiary">{fmtAgo(agoSec)}</span>
+                        <span className={STATUS_BADGE[item.status]}>{item.status}</span>
+                      </div>
                     </div>
-                    <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                      <span className="text-overline text-text-tertiary">{item.ago}</span>
-                      <span className={STATUS_BADGE[item.status]}>{item.status}</span>
-                    </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             </motion.div>
 
@@ -331,7 +488,10 @@ export default function CommandCenter() {
                   <span className="overline-label">Satellite Health</span>
                   <span className="font-mono text-overline text-text-tertiary">{satelliteHealth.filter(s => s.live).length}/{satelliteHealth.length} live</span>
                 </div>
-                {satelliteHealth.map((s, i) => (
+                {satelliteHealth.map((s, i) => {
+                  const bat = liveBat[i] ?? s.bat
+                  const batColor = bat > 80 ? '#22C55E' : bat > 50 ? '#F59E0B' : '#EF4444'
+                  return (
                   <div key={s.name}
                     className="px-4 py-2 flex items-center gap-2 hover:bg-white-3 transition-colors"
                     style={i < satelliteHealth.length - 1 ? { borderBottom: '1px solid rgba(255,255,255,0.04)' } : {}}>
@@ -342,11 +502,11 @@ export default function CommandCenter() {
                       <div className="text-overline text-text-tertiary">{s.agency} · {s.mode}</div>
                     </div>
                     <div className="flex items-center gap-1 flex-shrink-0">
-                      <span className="font-mono text-overline" style={{ color: s.bat > 80 ? '#22C55E' : s.bat > 50 ? '#F59E0B' : '#EF4444' }}>{s.bat}%</span>
-                      <BatteryBar pct={s.bat} color={s.bat > 80 ? '#22C55E' : s.bat > 50 ? '#F59E0B' : '#EF4444'} />
+                      <span className="font-mono text-overline" style={{ color: batColor }}>{bat.toFixed(0)}%</span>
+                      <BatteryBar pct={bat} color={batColor} />
                     </div>
                   </div>
-                ))}
+                )})}
               </div>
 
               {/* Acquisition Queue */}
@@ -356,7 +516,13 @@ export default function CommandCenter() {
                   <span className="overline-label">Acquisition Queue</span>
                   <span className="mission-badge mission-badge-active">{acquisitionQueue.length} QUEUED</span>
                 </div>
-                {acquisitionQueue.slice(0, 4).map((aq, i) => (
+                {acquisitionQueue.slice(0, 4).map((aq, i) => {
+                  // RISAT-2B (index 1) uses live countdown; Cartosat-3 (index 0) uses NOW
+                  const displayEta = aq.satellite === 'RISAT-2B'
+                    ? formatEta(etaSeconds)
+                    : aq.eta
+                  const isLive = displayEta === 'NOW'
+                  return (
                   <div key={aq.sceneId}
                     className="px-4 py-2.5 hover:bg-white-3 transition-colors cursor-pointer"
                     style={i < 3 ? { borderBottom: '1px solid rgba(255,255,255,0.04)' } : {}}>
@@ -367,8 +533,8 @@ export default function CommandCenter() {
                         <div className="flex items-center gap-1.5">
                           <span className="text-caption text-text-primary font-medium" style={{ fontSize: 10.5 }}>{aq.satellite}</span>
                           <span className="font-mono text-overline"
-                            style={{ color: aq.eta === 'NOW' ? '#14B8A6' : aq.priority === 'HIGH' ? '#EF4444' : '#64748B' }}>
-                            {aq.eta}
+                            style={{ color: isLive ? '#14B8A6' : aq.priority === 'HIGH' ? '#EF4444' : '#64748B' }}>
+                            {displayEta}
                           </span>
                         </div>
                         <div className="flex items-center gap-1.5 mt-0.5">
@@ -378,7 +544,7 @@ export default function CommandCenter() {
                       </div>
                     </div>
                   </div>
-                ))}
+                )})}
               </div>
 
               {/* Active Downlinks */}
@@ -388,7 +554,10 @@ export default function CommandCenter() {
                   <span className="overline-label">Active Downlinks</span>
                   <Radio className="w-3 h-3 text-teal-primary" />
                 </div>
-                {activeDownlinks.map((dl, i) => (
+                {activeDownlinks.map((dl, i) => {
+                  const prog = liveProgress[i] ?? dl.progress
+                  const rxGB = (prog * parseFloat(dl.total)).toFixed(1)
+                  return (
                   <div key={dl.satellite}
                     className="px-4 py-2.5"
                     style={i < activeDownlinks.length - 1 ? { borderBottom: '1px solid rgba(255,255,255,0.04)' } : {}}>
@@ -400,15 +569,15 @@ export default function CommandCenter() {
                       <span className="font-mono text-overline text-teal-primary">{dl.rate}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <ProgressBar value={dl.progress} color="#14B8A6" />
-                      <span className="font-mono text-overline text-text-tertiary flex-shrink-0">{Math.round(dl.progress * 100)}%</span>
+                      <ProgressBar value={prog} color="#14B8A6" />
+                      <span className="font-mono text-overline text-text-tertiary flex-shrink-0">{Math.round(prog * 100)}%</span>
                     </div>
                     <div className="flex items-center justify-between mt-1">
-                      <span className="text-overline text-text-tertiary">{dl.rx} / {dl.total}</span>
+                      <span className="text-overline text-text-tertiary">{rxGB} GB / {dl.total}</span>
                       <span className="font-mono text-overline text-text-tertiary">ORB#{dl.orb}</span>
                     </div>
                   </div>
-                ))}
+                )})}
               </div>
             </motion.div>
 
@@ -492,7 +661,7 @@ export default function CommandCenter() {
                 style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)' }}>
                 <AlertTriangle className="w-3 h-3 text-danger" />
                 <span className="font-mono text-caption" style={{ color: '#EF4444' }}>
-                  PRIORITY — Flood level crossing detected · Brahmaputra Basin · RISAT-2B ETA 4m 12s
+                  PRIORITY — Flood level crossing detected · Brahmaputra Basin · RISAT-2B ETA {formatEta(etaSeconds)}
                 </span>
               </div>
             </motion.div>

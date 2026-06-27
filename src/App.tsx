@@ -10,6 +10,7 @@ import Analytics from '@/pages/Analytics'
 import SatelliteTracker from '@/pages/SatelliteTracker'
 import GraphExplorer from '@/components/graph/GraphExplorer'
 import AppErrorBoundary from '@/components/AppErrorBoundary'
+import IntelligenceReveal from '@/components/ui/IntelligenceReveal'
 
 const PAGE_TRANSITION = { duration: 0.22, ease: [0.4, 0, 0.2, 1] as [number, number, number, number] }
 
@@ -76,6 +77,8 @@ function AppInner() {
           <GraphExplorer />
         )}
       </AnimatePresence>
+
+      <IntelligenceReveal />
     </AppLayout>
   )
 }

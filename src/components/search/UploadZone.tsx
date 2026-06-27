@@ -4,6 +4,7 @@ import { Upload, X, FileImage, Check, MapPin, AlertTriangle } from 'lucide-react
 import { useAppStore } from '@/store/useAppStore'
 import { cn, formatCoordinates } from '@/lib/utils'
 import SensorChip from '@/components/ui/SensorChip'
+import MagneticButton from '@/components/ui/MagneticButton'
 import type { QueryImage, SensorType } from '@/types'
 
 // File types the backend accepts
@@ -143,9 +144,9 @@ export default function UploadZone() {
                 </div>
                 <div>
                   <div className="text-body-s text-text-secondary font-medium">
-                    {isDragging ? 'Release to upload' : 'Drop image here'}
+                    {isDragging ? 'Release to set as query scene' : 'Drop query scene here'}
                   </div>
-                  <div className="text-caption text-text-tertiary mt-1">or click to select a file</div>
+                  <div className="text-caption text-text-tertiary mt-1">SAR · Optical · Multispectral supported</div>
                 </div>
                 <div className="flex flex-wrap justify-center gap-1.5 mt-1">
                   {ACCEPT_LABEL.map((f) => (
@@ -237,20 +238,21 @@ export default function UploadZone() {
         )}
       </AnimatePresence>
 
-      <button
+      <MagneticButton
         onClick={handleBeginSearch}
         disabled={!uploadedImage || isSearching}
+        strength={uploadedImage && !isSearching ? 0.3 : 0}
         className="btn-primary w-full disabled:opacity-35 disabled:cursor-not-allowed flex items-center justify-center gap-2"
       >
         {isSearching ? (
           <>
             <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            Processing…
+            Running Retrieval…
           </>
         ) : (
-          'Begin Intelligence Search'
+          'Run Cross-Modal Retrieval'
         )}
-      </button>
+      </MagneticButton>
     </div>
   )
 }

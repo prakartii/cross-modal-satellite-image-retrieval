@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { MapPin, TrendingDown, Waves, Leaf, Building2 } from 'lucide-react'
 import { useAppStore } from '@/store/useAppStore'
@@ -26,6 +26,25 @@ const YEAR_SUMMARY: Record<string, { sensors: string[]; scenes: number; highligh
   '2023': { sensors: ['RISAT-2B', 'Cartosat-3', 'Sentinel-2A', 'ALOS-2'],     scenes: 8,  highlight: 'River morphology shift + vegetation recovery' },
   '2024': { sensors: ['RISAT-2B', 'Cartosat-3', 'Sentinel-1A', 'Sentinel-2A', 'ALOS-2'], scenes: 11, highlight: 'Active flood monitoring — uploaded mission image' },
   '2025': { sensors: ['RISAT-2B', 'Sentinel-1A'],                              scenes: 2,  highlight: 'Projected monitoring — 6-hour acquisition cadence' },
+}
+
+function TrackRow({
+  top, label, color, children,
+}: { top: number; label: string; color: string; children?: ReactNode }) {
+  return (
+    <div className="absolute left-0 right-0" style={{ top, height: 28 }}>
+      {/* Lane baseline */}
+      <div className="absolute inset-x-0" style={{ top: '50%', height: 1, background: `${color}18` }} />
+      {/* Lane label */}
+      <div className="absolute -left-0 text-right" style={{ top: '50%', transform: 'translateY(-50%)', width: 0, overflow: 'visible' }}>
+        <span className="font-mono whitespace-nowrap pr-2" style={{ fontSize: 8, color: `${color}80`, letterSpacing: '0.04em' }}>
+          {label}
+        </span>
+      </div>
+      {/* Children (markers) */}
+      <div className="relative w-full h-full">{children}</div>
+    </div>
+  )
 }
 
 export default function TimelineView() {
@@ -102,104 +121,87 @@ export default function TimelineView() {
             ))}
           </div>
 
-          {/* Track */}
-          <div className="relative h-24 mb-4">
-            {/* Baseline */}
-            <div
-              className="absolute top-1/2 left-0 right-0"
-              style={{ height: 1, background: 'rgba(45,55,72,0.4)' }}
-            />
+          {/* ── 4-Track Timeline ───────────────────────────────────── */}
+          <div className="relative mb-4" style={{ height: 140 }}>
 
             {/* Year gridlines */}
             {YEARS.map((y, i) => (
-              <div
-                key={i}
-                className="absolute top-0 bottom-0 transition-all"
-                style={{
-                  left: `${(i / (YEARS.length - 1)) * 100}%`,
-                  width: 1,
-                  background: selectedYear === y ? 'rgba(59,130,246,0.3)' : 'rgba(45,55,72,0.18)',
-                }}
-              />
+              <div key={i} className="absolute top-0 bottom-0"
+                style={{ left: `${(i / (YEARS.length - 1)) * 100}%`, width: 1, background: selectedYear === y ? 'rgba(59,130,246,0.25)' : 'rgba(45,55,72,0.14)' }} />
             ))}
 
-            {/* Environmental change markers */}
-            {CHANGE_EVENTS.map((evt, i) => {
-              const yearIdx = YEARS.indexOf(evt.year)
-              if (yearIdx < 0) return null
-              const pct = (yearIdx / (YEARS.length - 1)) * 100
-              return (
-                <div
-                  key={i}
-                  className="absolute top-0 -translate-x-1/2"
-                  style={{ left: `${pct}%` }}
-                >
-                  <div
-                    className="w-px h-8"
-                    style={{ background: `${evt.color}40` }}
-                  />
-                  <div
-                    className="w-1.5 h-1.5 rounded-full -translate-x-[2px]"
-                    style={{ background: evt.color }}
-                  />
+            {/* Track 1 — Satellite Acquisitions (top) */}
+            <TrackRow top={4} label="Satellite Acquisitions" color="#8B5CF6">
+              {CHANGE_EVENTS.filter(e => !e.label.includes('UPLOADED')).map((evt, i) => {
+                const yearIdx = YEARS.indexOf(evt.year)
+                if (yearIdx < 0) return null
+                const pct = (yearIdx / (YEARS.length - 1)) * 100
+                return (
+                  <div key={i} className="absolute -translate-x-1/2 -translate-y-1/2"
+                    style={{ left: `${pct + (i % 3) * 2}%`, top: '50%' }}>
+                    <div className="w-2 h-2 rounded-full" style={{ background: evt.color, opacity: 0.8 }} />
+                  </div>
+                )
+              })}
+            </TrackRow>
+
+            {/* Track 2 — Flood Events */}
+            <TrackRow top={40} label="Flood Events" color="#3B82F6">
+              {CHANGE_EVENTS.filter(e => e.type === 'flood').map((evt, i) => {
+                const yearIdx = YEARS.indexOf(evt.year)
+                if (yearIdx < 0) return null
+                const pct = (yearIdx / (YEARS.length - 1)) * 100
+                return (
+                  <div key={i} className="absolute -translate-x-1/2 -translate-y-1/2"
+                    style={{ left: `${pct}%`, top: '50%' }}>
+                    <div className="w-2.5 h-2.5 rounded-sm rotate-45 flex-shrink-0"
+                      style={{ background: evt.color, boxShadow: `0 0 6px ${evt.color}40` }} />
+                  </div>
+                )
+              })}
+            </TrackRow>
+
+            {/* Track 3 — Retrieved Matches */}
+            <TrackRow top={76} label="Retrieved Matches" color="#14B8A6">
+              {sorted.map((r, i) => (
+                <motion.div key={r.id}
+                  initial={{ scale: 0, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ delay: i * 0.04 + 0.2 }}
+                  className="absolute -translate-x-1/2 -translate-y-1/2 cursor-pointer"
+                  style={{ left: `${getX(r.timestamp)}%`, top: '50%' }}
+                  onMouseEnter={() => setHovered(r)}
+                  onMouseLeave={() => setHovered(null)}
+                  onClick={() => openExplainability(r)}>
+                  <div className="rounded-full transition-all duration-150"
+                    style={{
+                      width:  `${6 + (r.similarityScore / 100) * 6}px`,
+                      height: `${6 + (r.similarityScore / 100) * 6}px`,
+                      background: getSensorColor(r.sensorType),
+                      border: '1.5px solid rgba(8,13,22,0.8)',
+                      transform: hovered?.id === r.id ? 'scale(1.6)' : 'scale(1)',
+                      boxShadow: hovered?.id === r.id ? `0 0 8px ${getSensorColor(r.sensorType)}60` : 'none',
+                    }} />
+                </motion.div>
+              ))}
+            </TrackRow>
+
+            {/* Track 4 — Mission Events */}
+            <TrackRow top={112} label="Mission Events" color="#F59E0B">
+              {/* Query upload marker */}
+              <motion.div initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ delay: 0.15 }}
+                className="absolute -translate-x-1/2 -translate-y-1/2 z-10"
+                style={{ left: `${getX(queryDate)}%`, top: '50%' }}>
+                <div className="w-5 h-5 rounded-full flex items-center justify-center"
+                  style={{ background: '#3B82F6', border: '2px solid rgba(8,13,22,1)', boxShadow: '0 0 0 3px rgba(59,130,246,0.3), 0 0 10px rgba(59,130,246,0.5)' }}>
+                  <div className="w-1.5 h-1.5 rounded-full bg-white" />
                 </div>
-              )
-            })}
-
-            {/* Current Observation marker (uploaded image) */}
-            <motion.div
-              initial={{ scale: 0, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ delay: 0.2 }}
-              className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 z-10"
-              style={{ left: `${getX(queryDate)}%` }}
-            >
-              <div
-                className="w-5 h-5 rounded-full flex items-center justify-center"
-                style={{
-                  background: '#3B82F6',
-                  border: '2px solid rgba(8,13,22,1)',
-                  boxShadow: '0 0 0 4px rgba(59,130,246,0.25), 0 0 12px rgba(59,130,246,0.4)',
-                }}
-              >
-                <div className="w-1.5 h-1.5 rounded-full bg-white" />
-              </div>
-              <div className="text-caption font-mono text-center mt-1 whitespace-nowrap -translate-x-6 leading-tight"
-                style={{ color: '#60A5FA' }}>
-                {activeMission ? 'Current' : 'Query'}
-                <br />
-                <span style={{ color: '#3B82F6', fontWeight: 600 }}>
-                  {activeMission ? 'Observation' : 'Image'}
-                </span>
-              </div>
-            </motion.div>
-
-            {/* Result dots */}
-            {sorted.map((r, i) => (
-              <motion.div
-                key={r.id}
-                initial={{ scale: 0, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ delay: i * 0.04 + 0.35 }}
-                className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 cursor-pointer z-5"
-                style={{ left: `${getX(r.timestamp)}%` }}
-                onMouseEnter={() => setHovered(r)}
-                onMouseLeave={() => setHovered(null)}
-                onClick={() => openExplainability(r)}
-              >
-                <div
-                  className="rounded-full transition-all duration-150"
-                  style={{
-                    width:  `${8 + (r.similarityScore / 100) * 8}px`,
-                    height: `${8 + (r.similarityScore / 100) * 8}px`,
-                    background: getSensorColor(r.sensorType),
-                    border: '2px solid rgba(8,13,22,0.8)',
-                    transform: hovered?.id === r.id ? 'scale(1.5)' : 'scale(1)',
-                    boxShadow: hovered?.id === r.id ? `0 0 10px ${getSensorColor(r.sensorType)}60` : 'none',
-                  }}
-                />
+                <div className="font-mono text-center whitespace-nowrap -translate-x-5 leading-tight"
+                  style={{ fontSize: 8, color: '#60A5FA', marginTop: 2 }}>
+                  RISAT-2B<br /><span style={{ color: '#3B82F6', fontWeight: 700 }}>Query</span>
+                </div>
               </motion.div>
-            ))}
+            </TrackRow>
           </div>
 
           {/* Hover tooltip */}
@@ -269,7 +271,7 @@ export default function TimelineView() {
                     </div>
                     {isCurrent && (
                       <div className="text-overline mt-0.5" style={{ color: '#3B82F6' }}>
-                        Brahmaputra Basin · 78% confidence · Flood signature
+                        BF2024-RISAT2B-001 · 87% confidence · RISAT-2B SAR · C-band
                       </div>
                     )}
                   </div>
