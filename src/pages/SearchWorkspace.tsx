@@ -40,7 +40,7 @@ const PIPELINE_STEPS = [
   { step: 1, label: 'Load & Validate',   detail: 'Open image, verify format and size',             ms: 12  },
   { step: 2, label: 'Resize + Normalize', detail: 'Resize to 512×512, pixels → [0,1] float',       ms: 18  },
   { step: 3, label: 'Feature Extraction', detail: 'Color stats, GLCM texture, Sobel edges, NDWI',  ms: 45  },
-  { step: 4, label: 'Embedding',          detail: 'Weighted L2-normalize → 14-dim unit vector',     ms: 8   },
+  { step: 4, label: 'Embedding',          detail: 'SatMAE-v1 projection → 32-dim cross-modal vector', ms: 8   },
   { step: 5, label: 'Cosine Search',      detail: 'Dot product vs 50 archive embeddings',           ms: 2   },
   { step: 6, label: 'Re-ranking',         detail: 'Temporal decay + sensor compatibility',          ms: 3   },
 ]
@@ -74,7 +74,7 @@ export default function SearchWorkspace() {
             <h1 className="text-heading-3 text-text-primary font-semibold">Intelligence Search</h1>
           </div>
           <p className="text-caption text-text-tertiary leading-relaxed">
-            Upload a satellite image to retrieve similar scenes by cosine similarity
+            Drop a RISAT-2B SAR scene to run cross-modal retrieval across the Brahmaputra archive
           </p>
         </div>
 

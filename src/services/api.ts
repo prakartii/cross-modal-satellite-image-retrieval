@@ -121,9 +121,7 @@ class AkshaApiClient {
   ): Promise<ReadableStreamDefaultReader<string> | null> {
     // Always do a live check — backend may have started since last attempt
     this._available = null
-    console.log('[AKSHA API] Checking backend health before analysis…')
     const { available } = await this.checkHealth()
-    console.log('[AKSHA API] Backend available:', available)
     if (!available) return null
 
     const formData = new FormData()

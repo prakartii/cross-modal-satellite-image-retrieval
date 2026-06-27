@@ -63,7 +63,6 @@ export default function UploadZone() {
       fileSize:     `${fileSizeKb} KB`,
     }
 
-    console.log('[AKSHA] File selected:', file.name, `${fileSizeKb} KB`, file.type, '→ sensor:', sensorType)
     setUploadedImage(queryImage)
   }, [setUploadedImage])
 
@@ -72,7 +71,6 @@ export default function UploadZone() {
     setIsDragging(false)
     const file = e.dataTransfer.files[0]
     if (file) {
-      console.log('[AKSHA] File dropped:', file.name)
       processFile(file)
     }
   }, [processFile])
@@ -90,7 +88,6 @@ export default function UploadZone() {
       URL.revokeObjectURL(uploadedImage.thumbnailUrl)
     }
     setUploadedImage(null)
-    console.log('[AKSHA] Upload cleared')
   }
 
   const handleBeginSearch = () => {
@@ -102,7 +99,6 @@ export default function UploadZone() {
       console.error('[AKSHA] uploadedImage.file is missing — cannot send to backend')
       return
     }
-    console.log('[AKSHA] Begin Intelligence Search — starting pipeline for:', uploadedImage.name)
     startSearch()
   }
 

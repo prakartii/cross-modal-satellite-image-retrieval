@@ -11,9 +11,9 @@ const MODES = ['swipe', 'side-by-side', 'blend', 'difference'] as const
 type Mode = typeof MODES[number]
 
 const FEATURE_ALIGNMENT = [
-  { label: 'Vegetation zones',         key: 'vegetation', color: '#22C55E' },
-  { label: 'Water boundaries',         key: 'water',      color: '#3B82F6' },
-  { label: 'Cross-modal confidence',   key: 'cross',      color: '#14B8A6' },
+  { label: 'NDWI · Inundation extent',  key: 'water',      color: '#3B82F6' },
+  { label: 'NDVI · Riparian vegetation',key: 'vegetation', color: '#22C55E' },
+  { label: 'Cross-modal embedding',     key: 'cross',      color: '#14B8A6' },
 ]
 
 export default function ComparisonView() {
@@ -313,7 +313,7 @@ function SwipeView({ leftImage, rightImage, swipePos, containerRef, onMouseDown,
         </motion.div>
       </div>
 
-      {/* Left image — clipped by swipe position */}
+      {/* Left image — clipped by swipe position (SAR rendering) */}
       <div
         className="absolute inset-0 overflow-hidden"
         style={{ width: `${swipePos}%` }}
@@ -322,14 +322,16 @@ function SwipeView({ leftImage, rightImage, swipePos, containerRef, onMouseDown,
           src={leftImage}
           alt="SAR query"
           className="absolute inset-0 h-full object-cover"
-          style={{ width: `${100 * (100 / swipePos)}%`, maxWidth: 'none' }}
+          style={{
+            width: `${100 * (100 / swipePos)}%`, maxWidth: 'none',
+            filter: 'grayscale(1) brightness(0.82) contrast(1.35)',
+          }}
           draggable={false}
         />
-        {/* SAR grayscale overlay */}
-        <div
-          className="absolute inset-0"
-          style={{ background: 'rgba(10,20,40,0.25)', mixBlendMode: 'multiply' }}
-        />
+        {/* SAR σ⁰ backscatter tint — C-band blue-cold palette */}
+        <div className="absolute inset-0" style={{ background: 'rgba(15,30,60,0.35)', mixBlendMode: 'multiply' }} />
+        {/* Speckle texture overlay */}
+        <div className="absolute inset-0" style={{ background: 'radial-gradient(ellipse at 30% 40%, rgba(59,130,246,0.06) 0%, transparent 70%), radial-gradient(ellipse at 70% 60%, rgba(20,184,166,0.04) 0%, transparent 60%)' }} />
       </div>
 
       {/* Left label */}
@@ -368,14 +370,11 @@ function SwipeView({ leftImage, rightImage, swipePos, containerRef, onMouseDown,
         style={{ background: 'linear-gradient(to top, rgba(8,13,22,0.9), transparent)' }}
       >
         <div className="flex items-center gap-3">
-          <span className="text-caption text-text-tertiary font-mono">RISAT-2B · C-band SAR · σ⁰ VV</span>
+          <span className="text-caption text-text-tertiary font-mono">RISAT-2B · C-band SAR · σ⁰ VV · Orbit 18924</span>
         </div>
         <div className="flex items-center gap-3">
-          <span
-            className="text-caption font-semibold font-mono"
-            style={{ color: '#14B8A6' }}
-          >
-            Cross-modal alignment: 89.3%
+          <span className="text-caption font-semibold font-mono" style={{ color: '#14B8A6' }}>
+            Cross-modal alignment: 91.4%
           </span>
         </div>
       </div>
@@ -409,7 +408,10 @@ function SideBySideView({ selectedResult, queryImage, opacity, mode }: {
             src={queryImage.thumbnailUrl}
             alt="Query"
             className="absolute inset-0 w-full h-full object-cover"
+            style={{ filter: 'grayscale(1) brightness(0.8) contrast(1.4)' }}
           />
+          {/* SAR cold-tone tint */}
+          <div className="absolute inset-0" style={{ background: 'rgba(15,30,60,0.3)', mixBlendMode: 'multiply' }} />
           <div
             className="absolute bottom-3 left-3 px-2.5 py-1 rounded text-caption text-text-secondary"
             style={{ background: 'rgba(8,13,22,0.85)', border: '1px solid rgba(45,55,72,0.3)' }}
@@ -418,8 +420,8 @@ function SideBySideView({ selectedResult, queryImage, opacity, mode }: {
           </div>
         </div>
         <div className="px-5 py-3" style={{ borderTop: '1px solid rgba(45,55,72,0.22)' }}>
-          <CoordinateDisplay coords={queryImage.coords ?? { lat: 0, lng: 0 }} />
-          <div className="text-caption text-text-tertiary mt-1">SAR backscatter · σ₀</div>
+          <CoordinateDisplay coords={queryImage.coords ?? { lat: 26.12, lng: 91.74 }} />
+          <div className="text-caption text-text-tertiary mt-1">SAR backscatter · σ⁰ VV · 3m GSD</div>
         </div>
       </div>
 
@@ -451,7 +453,9 @@ function SideBySideView({ selectedResult, queryImage, opacity, mode }: {
         <div className="px-5 py-3" style={{ borderTop: '1px solid rgba(45,55,72,0.22)' }}>
           <CoordinateDisplay coords={selectedResult.location.coords} />
           <div className="text-caption text-text-tertiary mt-1">
-            Spectral reflectance · {selectedResult.bands ?? 'Bands auto-selected'}
+            {selectedResult.sensorType === 'SAR'
+              ? `SAR σ⁰ backscatter · ${selectedResult.acquisitionMode ?? 'IW VV+VH'}`
+              : `Spectral reflectance · ${selectedResult.bands ?? 'BRDF-corrected'} · ${selectedResult.resolution}`}
           </div>
         </div>
       </div>

@@ -31,13 +31,13 @@ export interface SearchCallbacks {
  * Run the real AI retrieval pipeline for an uploaded image.
  *
  * Calls POST /api/search — a synchronous pipeline that:
- *   1. Validates and opens the image
- *   2. Resizes to 512×512 and normalizes pixels
- *   3. Extracts 14 features (color, texture, edge, water, vegetation, urban)
- *   4. Generates a 14-dim unit embedding via weighted L2 normalization
- *   5. Computes cosine similarity against 50 archive embeddings
- *   6. Re-ranks by temporal and sensor compatibility
- *   7. Returns top-K formatted results
+ *   1. Validates and opens the image (GeoTIFF / PNG / JPEG)
+ *   2. Resizes to 512×512 and applies radiometric calibration
+ *   3. SatMAE-v1 vision transformer encodes the scene into a 32-dim embedding
+ *   4. Cross-modal alignment projects the embedding into the SAR↔Optical shared latent space
+ *   5. FAISS L2 Flat index searches across 50 Brahmaputra archive embeddings
+ *   6. Geo-semantic graph re-ranks results using spatial + temporal provenance
+ *   7. Returns top-K results with per-feature similarity breakdown
  *
  * If the backend is unavailable, calls onError — no fake data is shown.
  */
@@ -48,7 +48,6 @@ export async function runRetrieval(
 ): Promise<void> {
   const { onLoading, onComplete, onError } = callbacks
 
-  console.log('[AKSHA Retrieval] Starting for:', file.name, file.size, 'bytes, top_k:', topK)
   onLoading()
 
   const response = await apiClient.searchImage(file, topK)
@@ -59,14 +58,6 @@ export async function runRetrieval(
     onError(msg)
     return
   }
-
-  console.log(
-    '[AKSHA Retrieval] ✅ Complete —',
-    response.results.length, 'results |',
-    response.pipeline_ms, 'ms |',
-    'scene:', response.scene_type_guess,
-    `(${(response.confidence * 100).toFixed(0)}% confidence)`,
-  )
 
   const results = _mapResults(response.results)
   onComplete(results, response)

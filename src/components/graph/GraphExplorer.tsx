@@ -361,7 +361,7 @@ export default function GraphExplorer() {
   const dateRange      = currentMission
     ? new Date(currentMission.created_at).getFullYear().toString()
     : '2022–2024'
-  const missionLabel   = currentMission ? currentMission.id : 'MSN-24062'
+  const missionLabel   = currentMission ? currentMission.id : 'BF2024-RISAT2B-001'
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}

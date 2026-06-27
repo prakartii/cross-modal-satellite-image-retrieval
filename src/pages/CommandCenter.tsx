@@ -631,7 +631,7 @@ export default function CommandCenter() {
                     {activeMission.id.slice(0, 14)} · MISSION ACTIVE
                   </span>
                 ) : (
-                  <span className="font-mono text-caption text-text-tertiary">MSN-24062</span>
+                  <span className="font-mono text-caption text-text-tertiary">BF2024-RISAT2B-001</span>
                 )}
                 <div className="w-px h-3" style={{ background: 'rgba(45,55,72,0.5)' }} />
                 <span className="font-mono text-caption uppercase tracking-wider" style={{ color: '#60A5FA' }}>{earthLayer} layer</span>
@@ -642,7 +642,7 @@ export default function CommandCenter() {
             <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.75, duration: 0.35 }}
               className="absolute bottom-20 right-16 flex flex-col gap-2 z-10">
               <button onClick={() => setActiveView('search')} className="btn-primary px-5 py-2.5 text-body-s">
-                Upload & Search
+                Query Scene
               </button>
               <button onClick={() => setActiveView('satellite-tracker')}
                 className="glass-panel text-text-secondary text-body-s px-5 py-2.5 rounded-lg hover:text-text-primary transition-all">

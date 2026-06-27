@@ -9,7 +9,7 @@ import CrossModalViz from '@/components/search/CrossModalViz'
 import {
   analyticsMetrics, crossModalMatrix, queryVolumeData, sensorDistribution,
   acquisitionThroughput, activeRegions, disasterTimeline, latencyBreakdown,
-  sensorUtilization, missionKPIs,
+  sensorUtilization,
 } from '@/data/analytics'
 import { mockResults, OVERALL_CONF } from '@/data/mockResults'
 import { useAppStore } from '@/store/useAppStore'
@@ -82,9 +82,6 @@ export default function Analytics() {
     count: scoreSource.filter((r) => r.similarityScore >= bin.min && r.similarityScore < bin.max).length,
   }))
 
-  const totalScenesToday = acquisitionThroughput[acquisitionThroughput.length - 1]
-  const totalToday = totalScenesToday.sar + totalScenesToday.optical + totalScenesToday.multi
-
   // Mission-derived KPI cards — always show canonical mission values (never 0%)
   const missionKpiCards = [
     {
@@ -142,7 +139,7 @@ export default function Analytics() {
             </p>
           ) : (
             <p className="text-body-s text-text-tertiary mt-0.5">
-              DOY 175 · 2024 · Reporting period: 7 days · 06 platforms active
+              DOY 256 · 2024 · Mission BF2024-RISAT2B-001 · 06 platforms active
             </p>
           )}
         </div>

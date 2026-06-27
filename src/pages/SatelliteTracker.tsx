@@ -187,7 +187,7 @@ function OrbitCanvas({ satellites }: { satellites: SatelliteData[] }) {
     ctx.clearRect(0, 0, W, H)
 
     // Earth
-    const earthRadius = Math.min(W, H) * 0.28
+    const earthRadius = Math.min(W, H) * 0.30
     const earthGrad = ctx.createRadialGradient(cx - earthRadius * 0.2, cy - earthRadius * 0.2, earthRadius * 0.1, cx, cy, earthRadius)
     earthGrad.addColorStop(0, 'rgba(30, 58, 95, 0.9)')
     earthGrad.addColorStop(0.5, 'rgba(15, 35, 65, 0.95)')
@@ -258,10 +258,10 @@ function OrbitCanvas({ satellites }: { satellites: SatelliteData[] }) {
   return (
     <canvas
       ref={canvasRef}
-      width={420}
-      height={420}
+      width={480}
+      height={480}
       className="w-full h-full"
-      style={{ maxWidth: 420, maxHeight: 420 }}
+      style={{ maxWidth: 480, maxHeight: 480 }}
     />
   )
 }
@@ -483,7 +483,7 @@ export default function SatelliteTracker() {
         />
 
         {/* Orbit canvas */}
-        <div className="relative" style={{ width: 420, height: 420 }}>
+        <div className="relative" style={{ width: 480, height: 480 }}>
           <OrbitCanvas satellites={SATELLITES} />
 
           {/* Center label */}

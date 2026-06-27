@@ -166,7 +166,13 @@ function ResultRow({ result, index, selected, onSelect }: {
         style={{ background: 'rgba(17,24,39,0.8)', border: '1px solid rgba(45,55,72,0.3)' }}>
         <img src={result.thumbnailUrl} alt={result.location.name}
           className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-          style={{ filter: result.sensorType === 'SAR' ? 'grayscale(60%)' : 'none' }} />
+          style={{
+            filter: result.sensorType === 'SAR'
+              ? 'grayscale(1) brightness(0.82) contrast(1.35)'
+              : result.sensorType === 'Multispectral'
+                ? 'saturate(1.3) hue-rotate(185deg) brightness(0.88) contrast(1.1)'
+                : 'saturate(0.7) brightness(0.92) contrast(1.05)',
+          }} />
       </div>
 
       <div className="flex-1 min-w-0">
@@ -474,13 +480,20 @@ function CompareTab({ result }: { result: RetrievalResult }) {
           {/* Result image (right / back) */}
           <img src={result.thumbnailUrl} alt="Result"
             className="absolute inset-0 w-full h-full object-cover"
-            style={{ filter: result.sensorType === 'SAR' ? 'grayscale(60%)' : 'none' }} />
+            style={{
+              filter: result.sensorType === 'SAR'
+                ? 'grayscale(1) brightness(0.82) contrast(1.35)'
+                : result.sensorType === 'Multispectral'
+                  ? 'saturate(1.3) hue-rotate(185deg) brightness(0.88) contrast(1.1)'
+                  : 'saturate(0.7) brightness(0.92) contrast(1.05)',
+            }} />
 
-          {/* Query image (left / front) — clipped */}
+          {/* Query image (left / front) — clipped, SAR appearance */}
           <div className="absolute inset-0 overflow-hidden" style={{ width: `${pos}%` }}>
             <img src={QUERY_IMAGE_URL} alt="Query"
               className="absolute inset-0 h-full object-cover"
-              style={{ width: `${10000 / pos}%`, maxWidth: 'none' }} />
+              style={{ width: `${10000 / pos}%`, maxWidth: 'none', filter: 'grayscale(1) brightness(0.8) contrast(1.35)' }} />
+            <div className="absolute inset-0" style={{ background: 'rgba(15,30,60,0.3)', mixBlendMode: 'multiply' }} />
           </div>
 
           {/* Divider line */}
@@ -547,7 +560,7 @@ function CompareTab({ result }: { result: RetrievalResult }) {
             style={{ background: '#14B8A6' }} />
         </div>
         <div className="text-overline text-text-tertiary mt-1.5">
-          512-dimensional cross-modal embedding space · FAISS HNSW index · cosine distance
+          32-dim cross-modal embedding space (SatMAE-v1) · FAISS L2 Flat · cosine distance
         </div>
       </div>
     </>

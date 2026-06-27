@@ -27,7 +27,7 @@ export default function RetrievalResults() {
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
           <div className="text-heading-3 text-text-secondary mb-2 font-semibold">No results</div>
-          <div className="text-body-s text-text-tertiary">Upload an image on the Search screen to retrieve results</div>
+          <div className="text-body-s text-text-tertiary">Drop a RISAT-2B SAR query scene on the Intelligence Search screen to run cross-modal retrieval</div>
         </div>
       </div>
     )
